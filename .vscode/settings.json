@@ -1,0 +1,9 @@
+{
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "flake8.interpreter": ["/home/brian/Documents/c0de_box/scripts/pico_ansii/venv/bin/python"],
+  "black-formatter.interpreter": ["/home/brian/Documents/c0de_box/scripts/pico_ansii/venv/bin/python"],
+  "black-formatter.args": []
+}
