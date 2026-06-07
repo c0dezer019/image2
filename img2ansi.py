@@ -9,6 +9,7 @@ Usage:
 import sys
 import os
 import argparse
+import shutil
 
 try:
     from PIL import Image  # noqa: F401
@@ -178,7 +179,7 @@ def _write_png(html: str, out_path: str, width: int, no_gpu: bool) -> None:
         size=(px_w, px_w),  # square canvas; overflow trimmed by content
     )
     if os.path.dirname(out_path):
-        os.rename(os.path.basename(out_path), out_path)
+        shutil.move(os.path.basename(out_path), out_path)
     print("Image generated, stay frosty.")
 
 
