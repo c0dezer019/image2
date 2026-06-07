@@ -67,7 +67,7 @@ def rgb_to_256(r: int, g: int, b: int) -> int:
     if abs(r - g) < 8 and abs(g - b) < 8:
         if r < 8:
             return 16
-        if r > 248:
+        if r > 247:
             return 231
         return 232 + (r - 8) // 10
     r6 = round(r / 255 * 5)
@@ -172,7 +172,14 @@ def ansi_image_to_html(
 </html>"""
 
 
-def _write_png(html: str, out_path: str, width: int, no_gpu: bool) -> None:
+def _write_png(
+    html: str,
+    out_path: str,
+    width: int,
+    rows: int,
+    font_size: float,
+    no_gpu: bool,
+) -> None:
     try:
         from html2image import Html2Image  # type: ignore[import-untyped]
     except ImportError:
@@ -188,14 +195,16 @@ def _write_png(html: str, out_path: str, width: int, no_gpu: bool) -> None:
             "--disable-software-rasterizer",
             "--disable-dev-shm-usage",
         ]
-    # px width: each cell ~ font_size*0.6 wide; height tracked by html2image
-    px_w = int(width * 8.0 * 0.6) + 2
+    # Canvas sized to the art: each cell ~ font_size*0.6 wide, font_size tall.
+    # +2 safety pixels to avoid sub-pixel cutoff.
+    px_w = int(width * font_size * 0.6) + 2
+    px_h = int(rows * font_size) + 2
     hti = Html2Image(custom_flags=flags)
     print(f"Snapping the PNG to {out_path}...")
     hti.screenshot(
         html_str=html,
         save_as=os.path.basename(out_path),
-        size=(px_w, px_w),  # square canvas; overflow trimmed by content
+        size=(px_w, px_h),
     )
     if os.path.dirname(out_path):
         shutil.move(os.path.basename(out_path), out_path)
@@ -263,8 +272,14 @@ def main():
 
     if args.png:
         png_path = os.path.splitext(ans_path)[0] + ".png"
-        html = ansi_image_to_html(img, bg_color="#000000", font_size=8.0)
-        _write_png(html, png_path, args.width, args.no_gpu)
+        font_size = 8.0
+        rows = img.height // 2
+        html = ansi_image_to_html(
+            img, bg_color="#000000", font_size=font_size
+        )
+        _write_png(
+            html, png_path, args.width, rows, font_size, args.no_gpu
+        )
 
 
 if __name__ == "__main__":
