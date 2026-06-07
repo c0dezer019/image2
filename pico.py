@@ -38,7 +38,7 @@ import os
 import sys
 
 try:
-    from PIL import Image  # noqa: F401
+    from PIL import Image
 except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)

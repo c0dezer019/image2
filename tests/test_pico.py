@@ -1,6 +1,8 @@
+import os
 import sys
 
 import pytest
+from PIL import Image
 
 import pico
 
@@ -55,14 +57,9 @@ def test_main_wrong_style_exits_2(monkeypatch):
     assert exc.value.code == 2
 
 
-import os as _os
-
-from PIL import Image as _Image
-
-
 def _tiny_image(tmp_path):
     path = tmp_path / "tiny.png"
-    img = _Image.new("RGB", (4, 4), (200, 100, 50))
+    img = Image.new("RGB", (4, 4), (200, 100, 50))
     img.save(path)
     return str(path)
 
@@ -74,7 +71,7 @@ def test_ansi_writes_ans_file(tmp_path, monkeypatch):
         sys, "argv", ["pico", src, "--style", "ansi", "-o", out]
     )
     pico.main()
-    assert _os.path.exists(out)
+    assert os.path.exists(out)
     data = open(out, encoding="utf-8").read()
     assert "\x1b[" in data and "▀" in data
 
@@ -84,7 +81,7 @@ def test_ascii_html_writes_html_file(tmp_path, monkeypatch):
     out = str(tmp_path / "art.html")
     monkeypatch.setattr(sys, "argv", ["pico", src, "--html", "-o", out])
     pico.main()
-    assert _os.path.exists(out)
+    assert os.path.exists(out)
     assert "<pre>" in open(out, encoding="utf-8").read()
 
 
@@ -93,13 +90,13 @@ def test_ascii_default_output_path(tmp_path, monkeypatch):
     src = _tiny_image(tmp_path)
     monkeypatch.setattr(sys, "argv", ["pico", src, "--html"])
     pico.main()
-    expected = _os.path.splitext(src)[0] + "_ascii.html"
-    assert _os.path.exists(expected)
+    expected = os.path.splitext(src)[0] + "_ascii.html"
+    assert os.path.exists(expected)
 
 
 def test_ansi_default_output_path(tmp_path, monkeypatch):
     src = _tiny_image(tmp_path)
     monkeypatch.setattr(sys, "argv", ["pico", src, "--style", "ansi"])
     pico.main()
-    expected = _os.path.splitext(src)[0] + "_ansi.ans"
-    assert _os.path.exists(expected)
+    expected = os.path.splitext(src)[0] + "_ansi.ans"
+    assert os.path.exists(expected)
