@@ -30,6 +30,7 @@ Options:
 import sys
 import os
 import argparse
+import shutil
 
 try:
     from PIL import Image, ImageEnhance
@@ -328,7 +329,7 @@ def main():
             )
 
             if os.path.dirname(img_out):
-                os.rename(os.path.basename(img_out), img_out)
+                shutil.move(os.path.basename(img_out), img_out)
 
             print("Image generated, stay frosty.")
 

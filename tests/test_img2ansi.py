@@ -12,6 +12,13 @@ def test_rgb_to_256_pure_red_in_cube():
     assert 16 <= idx <= 231
 
 
+def test_rgb_to_256_always_in_valid_range():
+    # every gray value must stay within the xterm-256 range (16..255);
+    # guards the grayscale-ramp boundary (r=248/249 once overflowed to 256)
+    for v in range(256):
+        assert 16 <= img2ansi.rgb_to_256(v, v, v) <= 255
+
+
 def test_rgb_to_16_red():
     fg, bg = img2ansi.rgb_to_16(255, 0, 0)
     # bright or normal red foreground, matching background offset
