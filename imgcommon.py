@@ -3,6 +3,8 @@
 """imgcommon.py — shared image-prep helpers for img2ascii / img2ansi."""
 
 import colorsys
+import os
+import shutil
 
 from PIL import Image, ImageEnhance
 
@@ -45,3 +47,43 @@ def resize_for(
     return img.resize(
         (width, height), resample=Image.Resampling.LANCZOS
     ).convert("RGB")
+
+
+def write_png_from_html(
+    html: str,
+    out_path: str,
+    px_w: int,
+    px_h: int,
+    no_gpu: bool,
+) -> None:
+    """Rasterize HTML to a PNG via headless Chrome (html2image).
+
+    A missing html2image install is non-fatal: prints a hint and returns so
+    any already-written .ans/.html is preserved. Uses shutil.move so output
+    across filesystems works.
+    """
+    try:
+        from html2image import Html2Image  # type: ignore[import-untyped]
+    except ImportError:
+        print(
+            "Gnarly wipeout, comrad! You need html2image to save a PNG. "
+            "Run: pip install html2image"
+        )
+        return
+    flags = ["--hide-scrollbars", "--no-sandbox", "--disable-setuid-sandbox"]
+    if no_gpu:
+        flags += [
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-dev-shm-usage",
+        ]
+    hti = Html2Image(custom_flags=flags)
+    print(f"Snapping the PNG to {out_path}...")
+    hti.screenshot(
+        html_str=html,
+        save_as=os.path.basename(out_path),
+        size=(px_w, px_h),
+    )
+    if os.path.dirname(out_path):
+        shutil.move(os.path.basename(out_path), out_path)
+    print("Image generated, stay frosty.")
