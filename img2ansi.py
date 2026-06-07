@@ -66,3 +66,44 @@ def rgb_to_16(r: int, g: int, b: int) -> tuple[int, int]:
             best_d = d
             best = (pr, pg, pb, fg, bg)
     return best[3], best[4]
+
+
+def _cell_escape(
+    top: tuple[int, int, int],
+    bot: tuple[int, int, int],
+    mode: str,
+) -> str:
+    tr, tg, tb = top
+    br, bg_, bb = bot
+    if mode == "truecolor":
+        return (
+            f"\x1b[38;2;{tr};{tg};{tb}m"
+            f"\x1b[48;2;{br};{bg_};{bb}m{UPPER_HALF}"
+        )
+    if mode == "256":
+        return (
+            f"\x1b[38;5;{rgb_to_256(tr, tg, tb)}m"
+            f"\x1b[48;5;{rgb_to_256(br, bg_, bb)}m{UPPER_HALF}"
+        )
+    if mode == "bbs16":
+        fg, _ = rgb_to_16(tr, tg, tb)
+        _, bg_code = rgb_to_16(br, bg_, bb)
+        return f"\x1b[{fg}m\x1b[{bg_code}m{UPPER_HALF}"
+    raise ValueError(f"unknown mode: {mode}")
+
+
+def image_to_ansi(img: Image.Image, mode: str = "truecolor") -> str:
+    """Render an RGB image to ANSI half-block art. Samples 2 rows per cell."""
+    img = img.convert("RGB")
+    w, h = img.size
+    rows = h // 2
+    lines: list[str] = []
+    for cy in range(rows):
+        y = cy * 2
+        cells: list[str] = []
+        for x in range(w):
+            top = img.getpixel((x, y))
+            bot = img.getpixel((x, y + 1))
+            cells.append(_cell_escape(top, bot, mode))
+        lines.append("".join(cells) + "\x1b[0m")
+    return "\n".join(lines)
