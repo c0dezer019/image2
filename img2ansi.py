@@ -2,8 +2,27 @@
 # flake8: noqa: E501
 """img2ansi.py — Convert an image to traditional ANSI art (half-block glyphs).
 
+Each character cell is an upper-half block (▀): the top source pixel becomes
+the foreground color, the bottom pixel the background color, doubling vertical
+resolution.
+
 Usage:
     python3 img2ansi.py <input_image> [options]
+
+Options:
+    -o, --output      Output path (default: <input>_ansi.ans)
+    -w, --width       Character columns (default: 80, BBS-authentic)
+    --mode            truecolor (default) | 256 | bbs16
+    --png             Also rasterize a PNG via html2image
+    -c, --contrast    Contrast multiplier (default: 1.5)
+    -s, --sharpness   Sharpness multiplier (default: 2.5)
+    -B, --brightness  Brightness multiplier (default: 1.0)
+    --saturate        Saturation multiplier (default: 1.0)
+    --min-lum         Minimum HLS luminance 0.0-1.0 (default: 0.0)
+    --no-gpu          Disable GPU for html2image (PNG only)
+    -h, --help        Show this help
+
+View output:  cat <file>.ans
 """
 
 import sys
