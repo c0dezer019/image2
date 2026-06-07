@@ -1,34 +1,13 @@
 #!/usr/bin/env python3
 # flake8: noqa: E501
-"""img2ansi.py — Convert an image to traditional ANSI art (half-block glyphs).
+"""img2ansi.py — ANSI half-block render backend for pico.
 
 Each character cell is an upper-half block (▀): the top source pixel becomes
 the foreground color, the bottom pixel the background color, doubling vertical
-resolution.
-
-Usage:
-    python3 img2ansi.py <input_image> [options]
-
-Options:
-    -o, --output      Output path (default: <input>_ansi.ans)
-    -w, --width       Character columns (default: 80, BBS-authentic)
-    --mode            truecolor (default) | 256 | bbs16
-    --png             Also rasterize a PNG via html2image
-    -c, --contrast    Contrast multiplier (default: 1.5)
-    -s, --sharpness   Sharpness multiplier (default: 2.5)
-    -B, --brightness  Brightness multiplier (default: 1.0)
-    --saturate        Saturation multiplier (default: 1.0)
-    --min-lum         Minimum HLS luminance 0.0-1.0 (default: 0.0)
-    --no-gpu          Disable GPU for html2image (PNG only)
-    -h, --help        Show this help
-
-View output:  cat <file>.ans
+resolution. CLI lives in pico.py (`pico --style ansi`).
 """
 
 import sys
-import os
-import argparse
-import shutil
 
 try:
     from PIL import Image  # noqa: F401
@@ -171,116 +150,3 @@ def ansi_image_to_html(
 <body><pre>{body}</pre></body>
 </html>"""
 
-
-def _write_png(
-    html: str,
-    out_path: str,
-    width: int,
-    rows: int,
-    font_size: float,
-    no_gpu: bool,
-) -> None:
-    try:
-        from html2image import Html2Image  # type: ignore[import-untyped]
-    except ImportError:
-        print(
-            "Gnarly wipeout, comrad! You need html2image to save a PNG. "
-            "Run: pip install html2image"
-        )
-        return
-    flags = ["--hide-scrollbars", "--no-sandbox", "--disable-setuid-sandbox"]
-    if no_gpu:
-        flags += [
-            "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--disable-dev-shm-usage",
-        ]
-    # Canvas sized to the art: each cell ~ font_size*0.6 wide, font_size tall.
-    # +2 safety pixels to avoid sub-pixel cutoff.
-    px_w = int(width * font_size * 0.6) + 2
-    px_h = int(rows * font_size) + 2
-    hti = Html2Image(custom_flags=flags)
-    print(f"Snapping the PNG to {out_path}...")
-    hti.screenshot(
-        html_str=html,
-        save_as=os.path.basename(out_path),
-        size=(px_w, px_h),
-    )
-    if os.path.dirname(out_path):
-        shutil.move(os.path.basename(out_path), out_path)
-    print("Image generated, stay frosty.")
-
-
-def main():
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("input", nargs="?")
-    parser.add_argument("-o", "--output")
-    parser.add_argument("-w", "--width", type=int, default=80)
-    parser.add_argument(
-        "--mode",
-        choices=["truecolor", "256", "bbs16"],
-        default="truecolor",
-    )
-    parser.add_argument("--png", action="store_true", default=False)
-    parser.add_argument("-c", "--contrast", type=float, default=1.5)
-    parser.add_argument("-s", "--sharpness", type=float, default=2.5)
-    parser.add_argument("-B", "--brightness", type=float, default=1.0)
-    parser.add_argument("--saturate", type=float, default=1.0)
-    parser.add_argument("--min-lum", type=float, default=0.0)
-    parser.add_argument("--no-gpu", action="store_true", default=False)
-    parser.add_argument("-h", "--help", action="help")
-    args = parser.parse_args()
-
-    if not args.input or not os.path.exists(args.input):
-        print("Bummer dude, need a valid input image.")
-        sys.exit(1)
-
-    base = (
-        os.path.splitext(args.output)[0]
-        if args.output
-        else os.path.splitext(args.input)[0] + "_ansi"
-    )
-    ans_path = (
-        args.output
-        if (args.output and os.path.splitext(args.output)[1])
-        else base + ".ans"
-    )
-
-    img = load_and_enhance(
-        args.input,
-        args.contrast,
-        args.sharpness,
-        args.brightness,
-        args.saturate,
-    )
-    # half-block: cell_aspect 1.0, then sample 2 rows per cell ->
-    # need an even pixel height of ~ 2x the cell rows.
-    img = resize_for(img, args.width, cell_aspect=1.0)
-
-    if args.min_lum > 0:
-        img = img.convert("RGB")
-        for y in range(img.height):
-            for x in range(img.width):
-                r, g, b = img.getpixel((x, y))
-                img.putpixel((x, y), lift_luminance(r, g, b, args.min_lum))
-
-    print("Carving the ANSI wave...")
-    ansi = image_to_ansi(img, mode=args.mode)
-    with open(ans_path, "w", encoding="utf-8") as f:
-        f.write(ansi + "\n")
-    print(f"ANSI locked in at: {ans_path}")
-
-    if args.png:
-        png_path = os.path.splitext(ans_path)[0] + ".png"
-        font_size = 8.0
-        rows = img.height // 2
-        html = ansi_image_to_html(
-            img, bg_color="#000000", font_size=font_size
-        )
-        _write_png(
-            html, png_path, args.width, rows, font_size, args.no_gpu
-        )
-
-
-if __name__ == "__main__":
-    main()
