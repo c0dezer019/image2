@@ -1,3 +1,6 @@
+import os
+import sys
+
 import imgcommon
 from PIL import Image
 
@@ -47,3 +50,17 @@ def test_load_and_enhance_returns_image(tmp_path):
     )
     assert isinstance(out, Image.Image)
     assert out.size == (8, 8)
+
+
+def test_write_png_missing_html2image_returns_without_raising(
+    monkeypatch, capsys, tmp_path
+):
+    # Force `import html2image` to raise ImportError inside the function.
+    monkeypatch.setitem(sys.modules, "html2image", None)
+    out = str(tmp_path / "out.png")
+
+    imgcommon.write_png_from_html("<html></html>", out, 10, 10, False)
+
+    captured = capsys.readouterr()
+    assert "html2image" in captured.out  # prints the install hint
+    assert not os.path.exists(out)       # no file written, no exception
