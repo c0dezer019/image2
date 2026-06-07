@@ -17,3 +17,31 @@ def lift_luminance(
         luminance = min_l
     nr, ng, nb = colorsys.hls_to_rgb(h, luminance, s)
     return int(nr * 255), int(ng * 255), int(nb * 255)
+
+
+def load_and_enhance(
+    path: str,
+    contrast: float,
+    sharpness: float,
+    brightness: float,
+    saturate: float,
+) -> Image.Image:
+    img = Image.open(path)
+    if brightness != 1.0:
+        img = ImageEnhance.Brightness(img).enhance(brightness)
+    img = ImageEnhance.Contrast(img).enhance(contrast)
+    if saturate != 1.0:
+        img = ImageEnhance.Color(img).enhance(saturate)
+    img = ImageEnhance.Sharpness(img).enhance(sharpness)
+    return img
+
+
+def resize_for(
+    img: Image.Image, width: int, cell_aspect: float
+) -> Image.Image:
+    aspect = img.height / img.width
+    height = round(width * aspect * cell_aspect)
+    height = max(1, height)
+    return img.resize(
+        (width, height), resample=Image.Resampling.LANCZOS
+    ).convert("RGB")
