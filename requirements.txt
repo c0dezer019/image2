@@ -17,3 +17,4 @@ requests==2.34.2
 snowballstemmer==3.1.1
 urllib3==2.7.0
 websocket-client==1.9.0
+setuptools
