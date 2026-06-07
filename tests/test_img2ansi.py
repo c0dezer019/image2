@@ -73,3 +73,13 @@ def test_odd_height_drops_trailing_row():
     out = img2ansi.image_to_ansi(img, mode="truecolor")
     # 3 rows -> 1 cell row (floor(3/2))
     assert len([ln for ln in out.splitlines() if ln]) == 1
+
+
+def test_ansi_html_contains_cells():
+    img = _two_row((255, 0, 0), (0, 0, 255), width=2)
+    html = img2ansi.ansi_image_to_html(img, bg_color="#000000", font_size=8.0)
+    assert "<pre>" in html
+    assert "background:#000000" in html.replace(" ", "") or "#000000" in html
+    assert "color:rgb(255,0,0)" in html.replace(" ", "")
+    assert "background:rgb(0,0,255)" in html.replace(" ", "")
+    assert "▀" in html
