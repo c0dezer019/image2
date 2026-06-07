@@ -1,4 +1,5 @@
 import imgcommon
+from PIL import Image
 
 
 def test_lift_luminance_passthrough_when_min_zero():
@@ -17,3 +18,32 @@ def test_lift_luminance_leaves_bright_pixel():
     # already-bright pixel above the floor is unchanged-ish
     r, g, b = imgcommon.lift_luminance(255, 255, 255, 0.5)
     assert (r, g, b) == (255, 255, 255)
+
+
+def _solid(w, h, color=(120, 60, 200)):
+    return Image.new("RGB", (w, h), color)
+
+
+def test_resize_for_ascii_aspect():
+    img = _solid(100, 100)
+    out = imgcommon.resize_for(img, width=50, cell_aspect=0.48)
+    # height = round(50 * (100/100) * 0.48) = 24
+    assert out.size == (50, 24)
+    assert out.mode == "RGB"
+
+
+def test_resize_for_block_aspect():
+    img = _solid(80, 40)
+    out = imgcommon.resize_for(img, width=20, cell_aspect=1.0)
+    # height = round(20 * (40/80) * 1.0) = 10
+    assert out.size == (20, 10)
+
+
+def test_load_and_enhance_returns_image(tmp_path):
+    p = tmp_path / "src.png"
+    _solid(8, 8).save(p)
+    out = imgcommon.load_and_enhance(
+        str(p), contrast=1.5, sharpness=2.5, brightness=1.0, saturate=1.0
+    )
+    assert isinstance(out, Image.Image)
+    assert out.size == (8, 8)
