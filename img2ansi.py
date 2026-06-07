@@ -15,8 +15,6 @@ except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
 
-from imgcommon import load_and_enhance, resize_for, lift_luminance
-
 UPPER_HALF = "▀"  # ▀
 
 # Classic 16-color CP437/VGA palette: (r, g, b, fg_sgr, bg_sgr)
