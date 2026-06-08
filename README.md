@@ -14,7 +14,7 @@ one shared image-prep core:
 
 - Python 3.14+
 - [Pillow](https://pypi.org/project/Pillow/) — image loading/processing
-- [html2image](https://pypi.org/project/html2image/) — **only** for PNG output (needs Chrome/Chromium)
+- [html2image](https://pypi.org/project/html2image/) — required for PNG output (needs Chrome/Chromium)
 - pytest — only for the test suite
 
 ### Install system-wide with pipx (recommended)
@@ -135,10 +135,8 @@ docs/superpowers/  Design spec + implementation plan
 
 ## PNG output notes
 
-- PNG requires `html2image` (drives headless Chrome/Chromium). If Chrome isn't
-  found or crashes, add `--no-gpu`.
-- Without `html2image`, the `.ans`/`.html` is still written; the PNG step prints
-  a hint and is skipped.
+- PNG output uses `html2image` (drives headless Chrome/Chromium). If Chrome
+  isn't found or crashes, add `--no-gpu`.
 - Output is moved with `shutil.move`, so writing across filesystems works.
 
 ---
