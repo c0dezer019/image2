@@ -1,4 +1,4 @@
-# pico — Unified CLI Design
+# ascii — Unified CLI Design
 
 **Date:** 2026-06-07
 **Status:** Approved (design); pending spec review
@@ -12,28 +12,28 @@ render styles has to remember and call a different script. We want one command.
 
 ## Goal
 
-A single `pico` command that renders an image in either style, with one
+A single `ascii` command that renders an image in either style, with one
 unified flag surface, while preserving the existing render behavior and test
 coverage.
 
 ## Decisions (locked)
 
-- **Command:** `pico`.
+- **Command:** `ascii`.
 - **Style selection:** `--style ascii|ansi`, defaulting to `ascii` when the
   flag is omitted.
-- **Invocation:** both `python3 pico.py <input> ...` (dev, no install) and an
-  installed `pico` console command (`pip install -e .`).
+- **Invocation:** both `python3 ascii.py <input> ...` (dev, no install) and an
+  installed `ascii` console command (`pip install -e .`).
 - **Directory rename:** `git mv pico_ansii pico_ascii` (corrects the
   misspelling) as part of this work.
 - **Old entrypoints:** hard replace. `img2ansi.py` and `img2ascii.py` lose
-  their `main()`/argparse and become pure render libraries. `pico` is the only
+  their `main()`/argparse and become pure render libraries. `ascii` is the only
   CLI. `python3 img2ansi.py foo.jpg` no longer runs.
 - **Wrong-style flags:** error out (exit 2) with a clear message when a
   style-specific flag is passed under the other style.
 
-> **Heads-up (not a blocker):** `pico` is also the classic nano-predecessor
-> editor binary on many systems. The installed `pico` command can shadow it on
-> PATH. Name chosen deliberately.
+> **Rename note:** initial design drafts used `pico`, but implementation ships
+> `ascii` to avoid conflicts with the classic nano-predecessor editor binary
+> named `pico` on many systems.
 
 ## Architecture
 
@@ -44,7 +44,7 @@ After the directory rename, the package is `pico_ascii/` with a flat layout:
 | `imgcommon.py` | Unchanged image-prep helpers (`lift_luminance`, `load_and_enhance`, `resize_for`) **plus** a new shared `write_png_from_html(html, out_path, px_w, px_h, no_gpu)`. |
 | `img2ansi.py` | ANSI render backend (library only, no `main()`). |
 | `img2ascii.py` | ASCII render backend (library only, no `main()`). |
-| `pico.py` | **New** unified CLI: argument parsing, style/default resolution, prep, dispatch, output writing. |
+| `ascii.py` | **New** unified CLI: argument parsing, style/default resolution, prep, dispatch, output writing. |
 | `tests/` | Existing pytest suite, unchanged. |
 
 ### Component: `imgcommon.write_png_from_html`
@@ -81,7 +81,7 @@ these exact names** (the test suite imports them directly):
 
 Also retained: `_cell_escape`, `PALETTE_16`, `UPPER_HALF`. The module-level
 `main()`, argparse, and `_write_png` are removed; PNG writing moves to the
-shared helper, called from `pico.py`.
+shared helper, called from `ascii.py`.
 
 ### Component: `img2ascii.py` (backend)
 
@@ -94,7 +94,7 @@ Render functions only. **These tested public symbols stay in this module:**
 The module-level `main()`, argparse, and inline Html2Image block are removed.
 `ascii_chars` stays.
 
-### Component: `pico.py` (the CLI)
+### Component: `ascii.py` (the CLI)
 
 One `argparse` parser with all flags. Flow:
 
@@ -113,7 +113,7 @@ Note: the ascii path currently performs its enhancement and resize *inside*
 `image_to_ascii_html`. To keep that tested function's behavior identical, the
 ascii dispatch calls it as-is (passing the raw `Image.open` result and params),
 rather than pre-running the shared prep. The ansi path uses the shared
-`load_and_enhance` + `resize_for` as `img2ansi.main` does today. `pico.py`
+`load_and_enhance` + `resize_for` as `img2ansi.main` does today. `ascii.py`
 absorbs the per-style orchestration that the deleted `main()`s used to do.
 
 ## Flag surface
@@ -150,7 +150,7 @@ Given default style is `ascii`, the common mistake is passing an ansi flag
 without `--style ansi`:
 
 ```
-$ pico in.jpg --mode 256
+$ ascii in.jpg --mode 256
 error: --mode requires --style ansi
 [exit 2]
 ```
@@ -177,20 +177,20 @@ dependencies = ["Pillow"]
 # html2image is optional (PNG only) — kept in requirements.txt, not a hard dep.
 
 [project.scripts]
-pico = "pico:main"
+ascii = "ascii:main"
 
 [tool.setuptools]
-py-modules = ["pico", "img2ansi", "img2ascii", "imgcommon"]
+py-modules = ["ascii", "img2ansi", "img2ascii", "imgcommon"]
 ```
 
-Flat layout (no `src/` restructure). `pip install -e .` exposes `pico` on PATH;
-`python3 pico.py` works without installing.
+Flat layout (no `src/` restructure). `pip install -e .` exposes `ascii` on
+PATH; `python3 ascii.py` works without installing.
 
 ## Documentation
 
 `README.md` currently documents `python3 img2ansi.py ...` and
 `python3 img2ascii.py ...` throughout (title, layout table, usage, examples).
-Rewrite it to document the single `pico` command, `--style`, the unified flag
+Rewrite it to document the single `ascii` command, `--style`, the unified flag
 table, and the new install/invocation. This is in scope for this change, not a
 follow-up — the old invocations stop working.
 
@@ -199,7 +199,7 @@ follow-up — the old invocations stop working.
 - The existing 19-test suite must pass unchanged. Tests import `img2ansi` and
   `img2ascii` by module name and call public functions directly; keeping those
   symbols in place (per the constraints above) preserves coverage.
-- New tests for `pico.py`:
+- New tests for `ascii.py`:
   - `--style` default resolves to `ascii`.
   - `--width` resolves to 350 (ascii) / 80 (ansi) when omitted.
   - Cross-style flag misuse exits 2 with the expected message
