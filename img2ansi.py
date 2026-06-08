@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # flake8: noqa: E501
-"""img2ansi.py — ANSI half-block render backend for pico.
+"""img2ansi.py — ANSI half-block render backend for ascii.
 
 Each character cell is an upper-half block (▀): the top source pixel becomes
 the foreground color, the bottom pixel the background color, doubling vertical
-resolution. CLI lives in pico.py (`pico --style ansi`).
+resolution. CLI lives in ascii.py (`ascii --style ansi`).
 """
 
 import sys
