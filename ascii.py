@@ -232,7 +232,7 @@ def main():
         sys.exit(2)
 
     if not args.input or not os.path.exists(args.input):
-        print("Bummer dude, need a valid input image.")
+        print("Error: a valid input image path is required.")
         sys.exit(1)
 
     width = resolve_width(args.style, args.width)

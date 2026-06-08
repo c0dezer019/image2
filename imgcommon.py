@@ -66,7 +66,7 @@ def write_png_from_html(
         from html2image import Html2Image  # type: ignore[import-untyped]
     except ImportError:
         print(
-            "Gnarly wipeout, comrad! You need html2image to save a PNG. "
+            "Missing dependency: html2image is required to save a PNG. "
             "Run: pip install html2image"
         )
         return
