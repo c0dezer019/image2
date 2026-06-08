@@ -1,4 +1,4 @@
-# pico
+# ascii
 
 Convert any image into terminal/text art with one command. Two render styles,
 one shared image-prep core:
@@ -23,21 +23,21 @@ Install in a venv:
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-pip install -e .          # exposes the `pico` command on PATH
+pip install -e .          # exposes the `ascii` command on PATH
 ```
 
-Without installing, run it directly: `python3 pico.py <image> ...`.
+Without installing, run it directly: `python3 ascii.py <image> ...`.
 
 ---
 
 ## Usage
 
 ```bash
-pico <input_image> [--style ascii|ansi] [options]
+ascii <input_image> [--style ascii|ansi] [options]
 ```
 
 `--style` defaults to `ascii`. A style-specific flag used under the wrong style
-is rejected with a clear error (exit 2), e.g. `pico in.jpg --mode 256` →
+is rejected with a clear error (exit 2), e.g. `ascii in.jpg --mode 256` →
 `error: --mode requires --style ansi`.
 
 ### Shared options
@@ -88,25 +88,25 @@ almost everywhere).
 
 ```bash
 # Colored ASCII (default style) -> high-detail PNG next to the source
-pico enterprise.jpg
+ascii enterprise.jpg
 #   -> enterprise_ascii.png
 
 # Standalone zoomable HTML
-pico planet.jpg --html
+ascii planet.jpg --html
 #   -> planet_ascii.html
 
 # Force a 1920px-wide PNG on dark-grey
-pico planet.jpg --img-width 1920 -b "#101010"
+ascii planet.jpg --img-width 1920 -b "#101010"
 
 # Traditional ANSI, 80-col truecolor .ans
-pico enterprise.jpg --style ansi
+ascii enterprise.jpg --style ansi
 cat enterprise_ansi.ans
 
 # Retro 16-color, wider, also a PNG
-pico planet.jpg --style ansi -w 100 --mode bbs16 --png
+ascii planet.jpg --style ansi -w 100 --mode bbs16 --png
 
 # 256-color, lift the dark areas
-pico planet.jpg --style ansi --mode 256 --min-lum 0.15
+ascii planet.jpg --style ansi --mode 256 --min-lum 0.15
 ```
 
 ---
@@ -117,7 +117,7 @@ pico planet.jpg --style ansi --mode 256 --min-lum 0.15
 imgcommon.py   Shared helpers: lift_luminance, load_and_enhance, resize_for, write_png_from_html
 img2ascii.py   Colored-ASCII render backend
 img2ansi.py    Traditional-ANSI render backend
-pico.py        Unified CLI (argument parsing, dispatch, output)
+ascii.py       Unified CLI (argument parsing, dispatch, output)
 tests/         pytest suite
 docs/superpowers/  Design spec + implementation plan
 ```
