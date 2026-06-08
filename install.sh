@@ -64,9 +64,9 @@ fi
 
 echo "Installing 'ascii' command from $SCRIPT_DIR ..."
 if [[ "$EDITABLE" -eq 1 ]]; then
-    pipx install --force --editable "$SCRIPT_DIR"
+    pipx install --force --editable "${SCRIPT_DIR}[png]"
 else
-    pipx install --force "$SCRIPT_DIR"
+    pipx install --force "${SCRIPT_DIR}[png]"
 fi
 
 echo
