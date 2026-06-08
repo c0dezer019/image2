@@ -172,7 +172,8 @@ def _render_ascii(args, width: int) -> None:
     else:
         output_path = os.path.splitext(args.input)[0] + "_ascii" + ext
 
-    img = Image.open(args.input)
+    with Image.open(args.input) as im:
+        img = im.copy()
 
     aspect = img.height / img.width
     ascii_height = int(width * aspect * 0.48)
