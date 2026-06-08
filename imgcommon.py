@@ -6,7 +6,10 @@ import colorsys
 import os
 import shutil
 
-from html2image import Html2Image  # type: ignore[import-untyped]
+try:
+    from html2image import Html2Image  # type: ignore[import-untyped]
+except ImportError:  # pragma: no cover
+    Html2Image = None  # type: ignore[assignment]
 from PIL import Image, ImageEnhance
 
 
