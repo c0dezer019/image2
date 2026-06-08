@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # flake8: noqa: E501
-"""pico — convert an image to colored ASCII or traditional ANSI art.
+"""ascii — convert an image to colored ASCII or traditional ANSI art.
 
 Usage:
-    pico <input_image> [--style ascii|ansi] [options]
-    python3 pico.py <input_image> [--style ascii|ansi] [options]
+    ascii <input_image> [--style ascii|ansi] [options]
+    python3 ascii.py <input_image> [--style ascii|ansi] [options]
 
 Default style is `ascii`. Style-specific flags used under the wrong style are
 rejected (exit 2).

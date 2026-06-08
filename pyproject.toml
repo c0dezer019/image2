@@ -10,10 +10,10 @@ requires-python = ">=3.14"
 dependencies = ["Pillow"]
 
 [project.scripts]
-pico = "pico:main"
+ascii = "ascii:main"
 
 [tool.setuptools]
-py-modules = ["pico", "img2ansi", "img2ascii", "imgcommon"]
+py-modules = ["ascii", "img2ansi", "img2ascii", "imgcommon"]
 
 [tool.black]
 line-length = 79
