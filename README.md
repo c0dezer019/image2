@@ -17,7 +17,16 @@ one shared image-prep core:
 - [html2image](https://pypi.org/project/html2image/) — **only** for PNG output (needs Chrome/Chromium)
 - pytest — only for the test suite
 
-Install in a venv:
+### Install system-wide with pipx (recommended)
+
+```bash
+./install.sh            # or ./install.sh --editable for dev (live source changes)
+```
+
+Puts `ascii` on PATH (`~/.local/bin`) in its own isolated venv — no manual venv
+activation ever needed. Installs pipx via brew (or `pip install --user`) if missing.
+
+### Install in a venv
 
 ```bash
 python -m venv venv
