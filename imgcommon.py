@@ -6,6 +6,7 @@ import colorsys
 import os
 import shutil
 
+from html2image import Html2Image  # type: ignore[import-untyped]
 from PIL import Image, ImageEnhance
 
 
@@ -58,18 +59,8 @@ def write_png_from_html(
 ) -> None:
     """Rasterize HTML to a PNG via headless Chrome (html2image).
 
-    A missing html2image install is non-fatal: prints a hint and returns so
-    any already-written .ans/.html is preserved. Uses shutil.move so output
-    across filesystems works.
+    Uses shutil.move so output across filesystems works.
     """
-    try:
-        from html2image import Html2Image  # type: ignore[import-untyped]
-    except ImportError:
-        print(
-            "Missing dependency: html2image is required to save a PNG. "
-            "Run: pip install html2image"
-        )
-        return
     flags = ["--hide-scrollbars", "--no-sandbox", "--disable-setuid-sandbox"]
     if no_gpu:
         flags += [
