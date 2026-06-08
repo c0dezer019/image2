@@ -1,12 +1,12 @@
-# pico Unified CLI Implementation Plan
+# ascii Unified CLI Implementation Plan
+
+> NOTE: This plan’s original `pico` naming has been superseded by the shipped `ascii` CLI; treat remaining `pico` references below as historical unless updated.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the separate `img2ansi.py` / `img2ascii.py` command-line tools with a single `pico` command that renders either style via `--style ascii|ansi` (default `ascii`).
+**Goal:** Replace the separate `img2ansi.py` / `img2ascii.py` command-line tools with a single `ascii` command that renders either style via `--style ascii|ansi` (default `ascii`).
 
-**Architecture:** `img2ansi.py` and `img2ascii.py` become pure render libraries (no `main()`). A new `pico.py` owns all CLI concerns — one argparse surface, per-style default resolution, cross-style flag validation, dispatch, and output writing. The duplicated Html2Image PNG routine is extracted once into `imgcommon.write_png_from_html`. The package is installable (`pip install -e .` exposes `pico`) and the directory is renamed `pico_ansii → pico_ascii`.
-
-**Tech Stack:** Python 3.14, Pillow, html2image (optional, PNG only), argparse, setuptools (flat py-modules layout), pytest.
+**Architecture:** `img2ansi.py` and `img2ascii.py` become pure render libraries (no `main()`). A new `ascii.py` owns all CLI concerns — one argparse surface, per-style default resolution, cross-style flag validation, dispatch, and output writing. The duplicated Html2Image PNG routine is extracted once into `imgcommon.write_png_from_html`. The package is installable (`pip install -e .` exposes `ascii`) and the directory is renamed `pico_ansii → pico_ascii`.
 
 ---
 
