@@ -6,6 +6,7 @@ idna==3.18
 iniconfig==2.3.0
 mccabe==0.7.0
 packaging==26.2
+-e git+ssh://git@github.com/c0dezer019/pico_ascii.git@7622286bd7323397770ecba75fe8488ee6165ab4#egg=pico_ascii
 pillow==12.2.0
 pluggy==1.6.0
 pycodestyle==2.14.0
@@ -14,7 +15,7 @@ pyflakes==3.4.0
 Pygments==2.20.0
 pytest==9.0.3
 requests==2.34.2
+setuptools==82.0.1
 snowballstemmer==3.1.1
 urllib3==2.7.0
 websocket-client==1.9.0
-setuptools
