@@ -31,8 +31,14 @@ ansi-only:
 """
 
 import argparse
+import importlib.metadata
 import os
 import sys
+
+try:
+    __version__ = importlib.metadata.version("image2")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "unknown"
 
 try:
     from PIL import Image
@@ -69,6 +75,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="img2",
         description="Convert images to colored ASCII or ANSI art.",
+    )
+    p.add_argument(
+        "-v", "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     sub = p.add_subparsers(dest="style", required=True)
 
