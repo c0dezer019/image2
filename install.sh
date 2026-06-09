@@ -78,7 +78,7 @@ fi
 # --- detect whether already installed ----------------------------------------
 
 ALREADY_INSTALLED=0
-if pipx list --short 2>/dev/null | grep -q "^${PKG} "; then
+if pipx list --short 2>/dev/null | grep -qx "${PKG}"; then
     ALREADY_INSTALLED=1
 fi
 
