@@ -34,6 +34,8 @@ def image_to_ascii_html(
     font_size: float,
     auto_select: bool,
     text_scale: float,
+    px_w: int = 0,
+    px_h: int = 0,
 ) -> str:
     if brightness != 1.0:
         img = ImageEnhance.Brightness(img).enhance(brightness)
@@ -43,7 +45,7 @@ def image_to_ascii_html(
     img = ImageEnhance.Sharpness(img).enhance(sharpness)
 
     aspect = img.height / img.width
-    height = int(width * aspect * 0.48)
+    height = int(width * aspect * 0.75)
     img = img.resize(  # type: ignore[arg-type]
         (width, height), resample=Image.Resampling.LANCZOS
     ).convert("RGB")
@@ -93,6 +95,9 @@ def image_to_ascii_html(
     row_height = (font_size * 0.8) * text_scale
     half_row = row_height / 2
 
+    w_css = f"{px_w}px" if px_w else "100vw"
+    h_css = f"{px_h}px" if px_h else "100vh"
+
     selection_css = (
         f"""
     ::selection {{
@@ -102,7 +107,7 @@ def image_to_ascii_html(
     body::after {{
       content: "";
       position: absolute;
-      top: 0; left: 0; width: 100vw; height: 100vh;
+      top: 0; left: 0; width: {w_css}; height: {h_css};
       background: repeating-linear-gradient(
         to bottom,
         transparent,
@@ -134,7 +139,7 @@ def image_to_ascii_html(
     )
 
     html = f"""<!DOCTYPE html>
-<html>
+<html style="margin:0;padding:0;width:{w_css};height:{h_css};overflow:hidden;">
 <head>
 <meta charset="UTF-8">
 <style>
@@ -144,8 +149,8 @@ def image_to_ascii_html(
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    width: 100vw;
+    width: {w_css};
+    height: {h_css};
     overflow: hidden;
     position: relative;
   }}

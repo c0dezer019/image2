@@ -64,7 +64,13 @@ def write_png_from_html(
 
     Uses shutil.move so output across filesystems works.
     """
-    flags = ["--hide-scrollbars", "--no-sandbox", "--disable-setuid-sandbox"]
+    flags = [
+        "--hide-scrollbars",
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-background-networking",
+        "--log-level=3",
+    ]
     if no_gpu:
         flags += [
             "--disable-gpu",
@@ -76,7 +82,7 @@ def write_png_from_html(
             "html2image is required to save a PNG. Run: pip install html2image"
         )
         return
-    hti = Html2Image(custom_flags=flags)
+    hti = Html2Image(custom_flags=flags, disable_logging=True)
     print(f"Snapping the PNG to {out_path}...")
     hti.screenshot(
         html_str=html,
