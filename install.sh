@@ -1,22 +1,33 @@
 #!/usr/bin/env bash
-# install.sh — install `ascii` command system-wide via pipx (no venv activation needed)
+# install.sh — install or update `img2` command system-wide via pipx
 #
-# Usage: ./install.sh [--editable]
-#   --editable   install in editable mode (changes to source take effect immediately)
+# Usage: ./install.sh [--editable] [--update]
+#   --editable   install in editable mode (source changes take effect immediately)
+#   --update     reinstall from current source (picks up code/dep changes)
 #
 # Assumes: bash, Linux/macOS, Homebrew present (or pipx already installed).
 # Installs pipx via brew if missing, then pipx-installs this project.
-# pipx puts the `ascii` binary on PATH (~/.local/bin) in its own isolated venv —
+# pipx puts the `img2` binary on PATH (~/.local/bin) in its own isolated venv —
 # no manual venv activation ever needed afterward.
+#
+# Update notes:
+#   --update does a full uninstall + reinstall (not --force) so renamed/removed
+#   entry points get pruned cleanly from ~/.local/bin. Use it whenever the
+#   [project.scripts] section changes, not just for code edits.
+#   pipx upgrade is NOT used — it pulls from PyPI, not local source.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 EDITABLE=0
+UPDATE=0
+PKG="image2"  # must match [project] name in pyproject.toml
+CMD="img2"    # must match [project.scripts] in pyproject.toml
 
 for arg in "$@"; do
     case "$arg" in
         --editable|-e) EDITABLE=1 ;;
+        --update|-u)   UPDATE=1 ;;
         -h|--help)
             grep '^#' "$0" | sed 's/^# \?//'
             exit 0
@@ -38,6 +49,10 @@ fi
 # --- ensure pipx is available -------------------------------------------------
 
 if ! command -v pipx &>/dev/null; then
+    if [[ "$UPDATE" -eq 1 ]]; then
+        echo "error: pipx not found — run install.sh (without --update) first." >&2
+        exit 1
+    fi
     echo "pipx not found — attempting to install it..."
     if command -v brew &>/dev/null; then
         brew install pipx
@@ -60,20 +75,47 @@ else
     exit 1
 fi
 
-# --- install the project -------------------------------------------------------
+# --- detect whether already installed ----------------------------------------
 
-echo "Installing 'ascii' command from $SCRIPT_DIR ..."
+ALREADY_INSTALLED=0
+if pipx list --short 2>/dev/null | grep -q "^${PKG} "; then
+    ALREADY_INSTALLED=1
+fi
+
+# Warn if --update requested but not installed
+if [[ "$UPDATE" -eq 1 && "$ALREADY_INSTALLED" -eq 0 ]]; then
+    echo "warning: '${PKG}' not currently installed via pipx — doing fresh install instead." >&2
+fi
+
+# --- install / reinstall the project -----------------------------------------
+
+if [[ "$ALREADY_INSTALLED" -eq 1 && "$UPDATE" -eq 0 ]]; then
+    echo "Note: '${PKG}' already installed. Use --update to reinstall/pick up changes."
+    echo "      Current location: $(command -v "$CMD" 2>/dev/null || echo '(not on PATH)')"
+    exit 0
+fi
+
+ACTION="Installing"
+if [[ "$ALREADY_INSTALLED" -eq 1 ]]; then
+    ACTION="Updating"
+    # Full uninstall first — pipx install --force doesn't prune renamed/removed
+    # entry points from ~/.local/bin, leaving dangling symlinks.
+    echo "Removing old install of '${PKG}' before reinstall..."
+    pipx uninstall "${PKG}"
+fi
+
+echo "${ACTION} '${CMD}' from ${SCRIPT_DIR} ..."
 if [[ "$EDITABLE" -eq 1 ]]; then
-    pipx install --force --editable "${SCRIPT_DIR}"
+    pipx install --editable "${SCRIPT_DIR}"
 else
-    pipx install --force "${SCRIPT_DIR}"
+    pipx install "${SCRIPT_DIR}"
 fi
 
 echo
-if command -v ascii &>/dev/null; then
-    echo "Done. 'ascii' is on PATH: $(command -v ascii)"
-    ascii --help 2>/dev/null | head -n 1 || true
+if command -v "$CMD" &>/dev/null; then
+    echo "Done. '${CMD}' is on PATH: $(command -v "$CMD")"
+    "$CMD" --help 2>/dev/null | head -n 1 || true
 else
-    echo "Installed, but 'ascii' isn't on PATH yet in this shell."
-    echo "Run:  source ~/.bashrc   (or open a new terminal)   then try: ascii --help"
+    echo "${ACTION} complete, but '${CMD}' isn't on PATH yet in this shell."
+    echo "Run:  source ~/.bashrc   (or open a new terminal)   then try: ${CMD} --help"
 fi
