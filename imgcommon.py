@@ -71,12 +71,12 @@ def write_png_from_html(
             "--disable-software-rasterizer",
             "--disable-dev-shm-usage",
         ]
-if Html2Image is None:
-    print(
-        "html2image is required to save a PNG. Run: pip install html2image"
-    )
-    return
-hti = Html2Image(custom_flags=flags)
+    if Html2Image is None:
+        print(
+            "html2image is required to save a PNG. Run: pip install html2image"
+        )
+        return
+    hti = Html2Image(custom_flags=flags)
     print(f"Snapping the PNG to {out_path}...")
     hti.screenshot(
         html_str=html,
