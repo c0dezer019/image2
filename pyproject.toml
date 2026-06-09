@@ -3,16 +3,16 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pico-ascii"
+name = "image2"
 version = "0.1.0"
 description = "Convert images to colored ASCII or traditional ANSI art."
 requires-python = ">=3.14"
 dependencies = ["Pillow", "html2image"]
 
 [project.scripts]
-ascii = "ascii:main"
+img2 = "image2:main"
 [tool.setuptools]
-py-modules = ["ascii", "img2ansi", "img2ascii", "imgcommon"]
+py-modules = ["image2", "img2ansi", "img2ascii", "imgcommon"]
 
 [tool.black]
 line-length = 79
