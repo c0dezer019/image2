@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 # flake8: noqa: E501
-"""ascii — convert an image to colored ASCII or traditional ANSI art.
+"""image2 — convert an image to colored ASCII or traditional ANSI art.
 
 Usage:
-    ascii <input_image> [--style ascii|ansi] [options]
-    python3 ascii.py <input_image> [--style ascii|ansi] [options]
-
-Default style is `ascii`. Style-specific flags used under the wrong style are
-rejected (exit 2).
+    img2 ascii <input_image> [options]
+    img2 ansi  <input_image> [options]
 
 Shared options:
     -o, --output      Output path
@@ -52,25 +49,11 @@ from imgcommon import (
     write_png_from_html,
 )
 
-# (attr on args, display name, "was it set?" predicate)
-ANSI_FLAGS = [
-    ("mode", "--mode", lambda v: v is not None),
-    ("png", "--png", bool),
-]
-ASCII_FLAGS = [
-    ("html", "--html", bool),
-    ("img_width", "--img-width", lambda v: v is not None),
-    ("img_height", "--img-height", lambda v: v is not None),
-    ("bg", "--bg", lambda v: v is not None),
-    ("font_size", "--font-size", lambda v: v is not None),
-    ("select", "--select", bool),
-]
 
-
-def build_parser() -> argparse.ArgumentParser:
+def _shared_parser() -> argparse.ArgumentParser:
+    """Parent parser carrying args common to both subcommands."""
     p = argparse.ArgumentParser(add_help=False)
     p.add_argument("input", nargs="?")
-    p.add_argument("--style", choices=["ascii", "ansi"], default="ascii")
     p.add_argument("-o", "--output")
     p.add_argument("-w", "--width", type=int, default=None)
     p.add_argument("-c", "--contrast", type=float, default=1.5)
@@ -79,28 +62,41 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--saturate", type=float, default=1.0)
     p.add_argument("--min-lum", type=float, default=0.0)
     p.add_argument("--no-gpu", action="store_true", default=False)
-    # ascii-only (defaults None/False so misuse is detectable)
-    p.add_argument("--html", action="store_true", default=False)
-    p.add_argument("--img-width", type=int, default=None)
-    p.add_argument("--img-height", type=int, default=None)
-    p.add_argument("-b", "--bg", default=None)
-    p.add_argument("--font-size", type=float, default=None)
-    p.add_argument("--select", action="store_true", default=False)
-    # ansi-only
-    p.add_argument("--mode", choices=["truecolor", "256", "bbs16"], default=None)
-    p.add_argument("--png", action="store_true", default=False)
-    p.add_argument("-h", "--help", action="help")
     return p
 
 
-def cross_style_error(args) -> str | None:
-    """Return an error message if a style-specific flag is misused, else None."""
-    wrong = ANSI_FLAGS if args.style == "ascii" else ASCII_FLAGS
-    other = "ansi" if args.style == "ascii" else "ascii"
-    for attr, name, is_set in wrong:
-        if is_set(getattr(args, attr)):
-            return f"{name} requires --style {other}"
-    return None
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="img2",
+        description="Convert images to colored ASCII or ANSI art.",
+    )
+    sub = p.add_subparsers(dest="style", required=True)
+
+    ascii_p = sub.add_parser(
+        "ascii",
+        parents=[_shared_parser()],
+        help="Colored ASCII art (PNG or HTML output)",
+    )
+    ascii_p.add_argument("--html", action="store_true", default=False)
+    ascii_p.add_argument("--img-width", type=int, default=None)
+    ascii_p.add_argument("--img-height", type=int, default=None)
+    ascii_p.add_argument("-b", "--bg", default=None)
+    ascii_p.add_argument("--font-size", type=float, default=None)
+    ascii_p.add_argument("--select", action="store_true", default=False)
+
+    ansi_p = sub.add_parser(
+        "ansi",
+        parents=[_shared_parser()],
+        help="Traditional ANSI art (.ans output)",
+    )
+    ansi_p.add_argument(
+        "--mode",
+        choices=["truecolor", "256", "bbs16"],
+        default=None,
+    )
+    ansi_p.add_argument("--png", action="store_true", default=False)
+
+    return p
 
 
 def resolve_width(style: str, width: int | None) -> int:
@@ -226,11 +222,6 @@ def _render_ascii(args, width: int) -> None:
 def main():
     parser = build_parser()
     args = parser.parse_args()
-
-    err = cross_style_error(args)
-    if err:
-        print(f"error: {err}", file=sys.stderr)
-        sys.exit(2)
 
     if not args.input or not os.path.exists(args.input):
         print("Error: a valid input image path is required.")
