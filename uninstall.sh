@@ -35,7 +35,7 @@ fi
 
 # --- check actually installed -------------------------------------------------
 
-if ! pipx list --short 2>/dev/null | grep -q "^${PKG} "; then
+if ! pipx list --short 2>/dev/null | grep -qx "${PKG}"; then
     echo "'${PKG}' is not installed via pipx — nothing to do."
     exit 0
 fi
