@@ -1,11 +1,11 @@
-# ascii
+# img2
 
 Convert any image into terminal/text art with one command. Two render styles,
 one shared image-prep core:
 
-| Style | `--style` | Output | Best viewed in |
-|-------|-----------|--------|----------------|
-| Colored **ASCII** — luminance picks a glyph (`$@B%8&…`), each character keeps its own RGB color | `ascii` (default) | HTML or PNG | Browser / image viewer |
+| Style | Subcommand | Output | Best viewed in |
+|-------|------------|--------|----------------|
+| Colored **ASCII** — luminance picks a glyph (`$@B%8&…`), each character keeps its own RGB color | `ascii` | HTML or PNG | Browser / image viewer |
 | Traditional **ANSI** — half-block `▀` (top pixel = foreground, bottom = background) | `ansi` | `.ans` + optional PNG | Terminal (`cat`) / image viewer |
 
 ---
@@ -23,7 +23,7 @@ one shared image-prep core:
 ./install.sh            # or ./install.sh --editable for dev (live source changes)
 ```
 
-Puts `ascii` on PATH (`~/.local/bin`) in its own isolated venv — no manual venv
+Puts `img2` on PATH (`~/.local/bin`) in its own isolated venv — no manual venv
 activation ever needed. Installs pipx via brew (or `pip install --user`) if missing.
 
 ### Install in a venv
@@ -32,29 +32,28 @@ activation ever needed. Installs pipx via brew (or `pip install --user`) if miss
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-pip install -e .          # exposes the `ascii` command on PATH
+pip install -e .          # exposes the `img2` command on PATH
 ```
 
-Without installing, run it directly: `python3 ascii.py <image> ...`.
+Without installing, run it directly: `python3 image2.py <subcommand> <image> ...`.
 
 ---
 
 ## Usage
 
 ```bash
-ascii <input_image> [--style ascii|ansi] [options]
+img2 ascii <input_image> [options]
+img2 ansi  <input_image> [options]
 ```
 
-`--style` defaults to `ascii`. A style-specific flag used under the wrong style
-is rejected with a clear error (exit 2), e.g. `ascii in.jpg --mode 256` →
-`error: --mode requires --style ansi`.
+The subcommand is required. Style-specific flags on the wrong subcommand are
+rejected with a clear error (exit 2).
 
 ### Shared options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `input` | — | Path to the source image (positional) |
-| `--style` | `ascii` | `ascii` \| `ansi` |
 | `-o, --output` | per style (below) | Output path. Extension respected if given |
 | `-w, --width` | `350` (ascii) / `80` (ansi) | Character columns |
 | `-c, --contrast` | `1.5` | Contrast multiplier |
@@ -96,26 +95,26 @@ almost everywhere).
 ## Examples
 
 ```bash
-# Colored ASCII (default style) -> high-detail PNG next to the source
-ascii enterprise.jpg
+# Colored ASCII -> high-detail PNG next to the source
+img2 ascii enterprise.jpg
 #   -> enterprise_ascii.png
 
 # Standalone zoomable HTML
-ascii planet.jpg --html
+img2 ascii planet.jpg --html
 #   -> planet_ascii.html
 
 # Force a 1920px-wide PNG on dark-grey
-ascii planet.jpg --img-width 1920 -b "#101010"
+img2 ascii planet.jpg --img-width 1920 -b "#101010"
 
 # Traditional ANSI, 80-col truecolor .ans
-ascii enterprise.jpg --style ansi
+img2 ansi enterprise.jpg
 cat enterprise_ansi.ans
 
 # Retro 16-color, wider, also a PNG
-ascii planet.jpg --style ansi -w 100 --mode bbs16 --png
+img2 ansi planet.jpg -w 100 --mode bbs16 --png
 
 # 256-color, lift the dark areas
-ascii planet.jpg --style ansi --mode 256 --min-lum 0.15
+img2 ansi planet.jpg --mode 256 --min-lum 0.15
 ```
 
 ---
@@ -126,9 +125,8 @@ ascii planet.jpg --style ansi --mode 256 --min-lum 0.15
 imgcommon.py   Shared helpers: lift_luminance, load_and_enhance, resize_for, write_png_from_html
 img2ascii.py   Colored-ASCII render backend
 img2ansi.py    Traditional-ANSI render backend
-ascii.py       Unified CLI (argument parsing, dispatch, output)
+image2.py      Unified CLI (argument parsing, dispatch, output)
 tests/         pytest suite
-docs/superpowers/  Design spec + implementation plan
 ```
 
 ---
