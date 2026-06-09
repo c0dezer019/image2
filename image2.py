@@ -197,7 +197,8 @@ def _render_ascii(args, width: int) -> None:
         px_w = img.width
         px_h = img.height
 
-    width = max(1, int((px_w - 2) / char_width_px))
+    if args.width is None:
+        width = max(1, int((px_w - 2) / char_width_px))
 
     print("Carving the HTML wave...")
     html = img2ascii.image_to_ascii_html(
