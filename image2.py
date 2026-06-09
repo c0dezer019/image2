@@ -126,6 +126,7 @@ def _render_ansi(args, width: int) -> None:
         args.brightness,
         args.saturate,
     )
+    orig_w, orig_h = img.width, img.height
     img = resize_for(img, width, cell_aspect=1.0)
 
     if args.min_lum > 0:
@@ -148,8 +149,8 @@ def _render_ansi(args, width: int) -> None:
         html = img2ansi.ansi_image_to_html(
             img, bg_color="#000000", font_size=font_size
         )
-        px_w = int(width * font_size * 0.6) + 2
-        px_h = int(rows * font_size) + 2
+        px_w = orig_w
+        px_h = orig_h
         write_png_from_html(html, png_path, px_w, px_h, args.no_gpu)
 
 
@@ -158,7 +159,7 @@ def _render_ascii(args, width: int) -> None:
     font_size = (
         args.font_size
         if args.font_size is not None
-        else (4.0 if args.html else 6.5)
+        else (4.0 if args.html else 13)
     )
 
     ext = ".html" if args.html else ".png"
@@ -171,29 +172,21 @@ def _render_ascii(args, width: int) -> None:
     with Image.open(args.input) as im:
         img = im.copy()
 
-    aspect = img.height / img.width
-    ascii_height = int(width * aspect * 0.48)
     char_width_px = font_size * 0.6
-    line_height_px = font_size * 0.8
-    auto_w = int((width * char_width_px) + 2)
-    auto_h = int((ascii_height * line_height_px) + 2)
 
-    scale = 1.0
-    if args.img_width and not args.img_height:
+    if args.img_width and args.img_height:
+        px_w, px_h = args.img_width, args.img_height
+    elif args.img_width:
         px_w = args.img_width
-        px_h = int(px_w * (auto_h / auto_w))
-        scale = px_w / auto_w
-    elif args.img_height and not args.img_width:
+        px_h = img.height * px_w // img.width
+    elif args.img_height:
         px_h = args.img_height
-        px_w = int(px_h * (auto_w / auto_h))
-        scale = px_h / auto_h
-    elif args.img_width and args.img_height:
-        px_w = args.img_width
-        px_h = args.img_height
-        scale = min(px_w / auto_w, px_h / auto_h)
+        px_w = img.width * px_h // img.height
     else:
-        px_w = auto_w
-        px_h = auto_h
+        px_w = img.width
+        px_h = img.height
+
+    width = max(1, int((px_w - 2) / char_width_px))
 
     print("Carving the HTML wave...")
     html = img2ascii.image_to_ascii_html(
@@ -207,7 +200,9 @@ def _render_ascii(args, width: int) -> None:
         bg,
         font_size,
         args.select,
-        scale,
+        1.0,
+        px_w,
+        px_h,
     )
 
     if args.html:
