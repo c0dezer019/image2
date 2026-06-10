@@ -1,7 +1,8 @@
 ## Runtime Gotchas
 
 - `write_png_from_html` saves to CWD then `shutil.move` — html2image can't target arbitrary paths directly.
-- ANSI PNG preview (`--png`) always renders truecolor regardless of `--mode`; `.ans` file carries quantized color.
+- CLI usage: `img2 [ascii|ansi] ...` — subcommand `style`, no `--mode` flag.
+- ANSI PNG preview (`--png`) always renders truecolor regardless of `ansi --color` mode; `.ans` file carries quantized color.
 - `img2ascii.image_to_ascii_html` runs its own enhancement inline — does NOT call `load_and_enhance`. Changes to shared enhancement logic need mirroring in both modules.
 - `ascii_chars` is reversed (index 0 = darkest). Brightness maps to `lum/255 * (len-1)`.
 - ANSI cell aspect = 1.0 (half-block doubles vertical res). ASCII cell aspect = 0.75 (char_width/line_height = 0.6/0.8).

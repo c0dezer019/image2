@@ -45,7 +45,7 @@ def image_to_ascii_html(
     img = ImageEnhance.Sharpness(img).enhance(sharpness)
 
     aspect = img.height / img.width
-    height = int(width * aspect * 0.75)
+    height = max(1, int(width * aspect * 0.75))
     img = img.resize(  # type: ignore[arg-type]
         (width, height), resample=Image.Resampling.LANCZOS
     ).convert("RGB")
@@ -139,7 +139,7 @@ def image_to_ascii_html(
     )
 
     html = f"""<!DOCTYPE html>
-<html style="margin:0;padding:0;width:{w_css};height:{h_css};overflow:hidden;">
+<html style="margin:0;padding:0;width:100vw;height:100vh;overflow:hidden;">
 <head>
 <meta charset="UTF-8">
 <style>
@@ -149,8 +149,8 @@ def image_to_ascii_html(
     display: flex;
     justify-content: center;
     align-items: center;
-    width: {w_css};
-    height: {h_css};
+    width: 100vw;
+    height: 100vh;
     overflow: hidden;
     position: relative;
   }}

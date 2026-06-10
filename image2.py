@@ -137,7 +137,6 @@ def _render_ansi(args, width: int) -> None:
         args.brightness,
         args.saturate,
     )
-    orig_w, orig_h = img.width, img.height
     img = resize_for(img, width, cell_aspect=1.0)
 
     if args.min_lum > 0:
@@ -156,12 +155,14 @@ def _render_ansi(args, width: int) -> None:
     if args.png:
         png_path = os.path.splitext(ans_path)[0] + ".png"
         font_size = 8.0
+        char_width_px = font_size * 0.6
+        cols = img.width
         rows = img.height // 2
         html = img2ansi.ansi_image_to_html(
             img, bg_color="#000000", font_size=font_size
         )
-        px_w = orig_w
-        px_h = orig_h
+        px_w = round(cols * char_width_px)
+        px_h = round(rows * font_size)
         write_png_from_html(html, png_path, px_w, px_h, args.no_gpu)
 
 
@@ -199,6 +200,14 @@ def _render_ascii(args, width: int) -> None:
 
     if args.width is None:
         width = max(1, int((px_w - 2) / char_width_px))
+
+    # Canvas must fit the rendered ascii grid exactly (mirrors the
+    # row/col math in img2ascii.image_to_ascii_html), else the centered
+    # <pre> gets clipped top/bottom by overflow:hidden.
+    aspect = img.height / img.width
+    ascii_rows = max(1, int(width * aspect * 0.75))
+    px_w = round(width * char_width_px)
+    px_h = round(ascii_rows * (font_size * 0.8))
 
     print("Carving the HTML wave...")
     html = img2ascii.image_to_ascii_html(

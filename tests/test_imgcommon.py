@@ -45,7 +45,13 @@ def test_resize_for_block_aspect():
 # write_png_from_html
 # ---------------------------------------------------------------------------
 
-_BASE_FLAGS = ["--hide-scrollbars", "--no-sandbox", "--disable-setuid-sandbox"]
+_BASE_FLAGS = [
+    "--hide-scrollbars",
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-background-networking",
+    "--log-level=3",
+]
 _GPU_FLAGS = [
     "--disable-gpu",
     "--disable-software-rasterizer",
@@ -82,7 +88,9 @@ def test_write_png_default_flags_no_gpu_false(monkeypatch):
 
     imgcommon.write_png_from_html("", "out.png", 1, 1, no_gpu=False)
 
-    mock_cls.assert_called_once_with(custom_flags=_BASE_FLAGS)
+    mock_cls.assert_called_once_with(
+        custom_flags=_BASE_FLAGS, disable_logging=True
+    )
 
 
 def test_write_png_extra_flags_no_gpu_true(monkeypatch):
@@ -91,7 +99,9 @@ def test_write_png_extra_flags_no_gpu_true(monkeypatch):
 
     imgcommon.write_png_from_html("", "out.png", 1, 1, no_gpu=True)
 
-    mock_cls.assert_called_once_with(custom_flags=_BASE_FLAGS + _GPU_FLAGS)
+    mock_cls.assert_called_once_with(
+        custom_flags=_BASE_FLAGS + _GPU_FLAGS, disable_logging=True
+    )
 
 
 def test_write_png_moves_file_when_out_path_has_dir(monkeypatch):

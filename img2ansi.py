@@ -135,7 +135,14 @@ def ansi_image_to_html(
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><style>
-  body {{ background:{bg_color}; margin:0; }}
+  body {{
+    background:{bg_color};
+    margin:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+  }}
   pre {{
     font-family:'Courier New',Courier,monospace;
     font-size:{font_size}px;
