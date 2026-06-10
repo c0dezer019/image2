@@ -10,6 +10,14 @@ one shared image-prep core:
 
 ---
 
+## Examples
+
+<img width="876" height="876" alt="jackinarmorv4_ascii" src="https://github.com/user-attachments/assets/9464524c-08f9-4b5d-87ab-6f02ae4a6b9a" />
+
+<img width="720" height="600" alt="jackinarmorv4_ansi" src="https://github.com/user-attachments/assets/ec40891d-618f-470a-a5d1-267316e7c59d" />
+
+
+
 ## Requirements
 
 - Python 3.14+
