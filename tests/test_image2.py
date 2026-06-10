@@ -5,6 +5,7 @@ import pytest
 from PIL import Image
 
 import image2
+import imgcommon
 
 
 def test_ascii_subcommand_sets_style():
@@ -92,3 +93,52 @@ def test_ansi_default_output_path(tmp_path, monkeypatch):
     image2.main()
     expected = os.path.splitext(src)[0] + "_ansi.ans"
     assert os.path.exists(expected)
+
+
+def test_resolve_enhance_params_all_explicit_skips_image(tmp_path):
+    # nonexistent path proves the image is never opened when nothing is None
+    missing = str(tmp_path / "does-not-exist.png")
+    result = image2.resolve_enhance_params(missing, 2.0, 1.1, 0.9, 0.05, False)
+    assert result == (2.0, 1.1, 0.9, 0.05)
+
+
+def test_resolve_enhance_params_auto_fills_unset(tmp_path):
+    src = _tiny_image(tmp_path)
+    with Image.open(src) as img:
+        expected = imgcommon.compute_auto_params(img.convert("RGB"))
+    result = image2.resolve_enhance_params(src, None, None, None, None, False)
+    assert result == (
+        expected["contrast"],
+        expected["brightness"],
+        expected["saturate"],
+        expected["min_lum"],
+    )
+
+
+def test_resolve_enhance_params_no_auto_uses_old_defaults(tmp_path):
+    missing = str(tmp_path / "does-not-exist.png")
+    result = image2.resolve_enhance_params(
+        missing, None, None, None, None, True
+    )
+    assert result == (1.5, 1.0, 1.0, 0.0)
+
+
+def test_resolve_enhance_params_partial_override_with_auto(tmp_path):
+    src = _tiny_image(tmp_path)
+    with Image.open(src) as img:
+        expected = imgcommon.compute_auto_params(img.convert("RGB"))
+    result = image2.resolve_enhance_params(src, None, 1.2, None, None, False)
+    assert result == (
+        expected["contrast"],
+        1.2,
+        expected["saturate"],
+        expected["min_lum"],
+    )
+
+
+def test_resolve_enhance_params_partial_override_no_auto(tmp_path):
+    missing = str(tmp_path / "does-not-exist.png")
+    result = image2.resolve_enhance_params(
+        missing, 2.0, None, None, None, True
+    )
+    assert result == (2.0, 1.0, 1.0, 0.0)
