@@ -146,7 +146,7 @@ def _render_ansi(args, width: int) -> None:
                 r, g, b = img.getpixel((x, y))
                 img.putpixel((x, y), lift_luminance(r, g, b, args.min_lum))
 
-    print("Carving the ANSI wave...")
+    print("Generating the ANSI...")
     ansi = img2ansi.image_to_ansi(img, mode=mode)
     with open(ans_path, "w", encoding="utf-8") as f:
         f.write(ansi + "\n")
@@ -209,7 +209,7 @@ def _render_ascii(args, width: int) -> None:
     px_w = round(width * char_width_px)
     px_h = round(ascii_rows * (font_size * 0.8))
 
-    print("Carving the HTML wave...")
+    print("Generating HTML...")
     html = img2ascii.image_to_ascii_html(
         img,
         width,
