@@ -16,7 +16,9 @@ Shared options:
     --min-lum         Minimum HLS luminance 0.0-1.0 (default: auto-detected)
     --no-auto         Disable auto-detection; use fixed defaults
                       (contrast 1.5, brightness 1.0, saturate 1.0,
-                      min-lum 0.0) for any of the above not given
+                      min-lum 0.0) for any of the above not given.
+                      Sharpness is never auto-detected and is
+                      unaffected by this flag.
     --no-gpu          Disable GPU in html2image (PNG only)
     -h, --help        Show help
 
@@ -49,10 +51,10 @@ except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
 
-import imgcommon
 import img2ansi
 import img2ascii
 from imgcommon import (
+    compute_auto_params,
     load_and_enhance,
     resize_for,
     lift_luminance,
@@ -160,7 +162,7 @@ def resolve_enhance_params(
         auto = _OLD_ENHANCE_DEFAULTS
     else:
         with Image.open(input_path) as img:
-            auto = imgcommon.compute_auto_params(img.convert("RGB"))
+            auto = compute_auto_params(img)
 
     resolved = {
         key: (value if value is not None else auto[key])
