@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, call, patch
 
+import pytest
+
 import imgcommon
 from PIL import Image
 
@@ -133,4 +135,70 @@ def test_load_and_enhance_returns_image(tmp_path):
     )
     assert isinstance(out, Image.Image)
     assert out.size == (8, 8)
+
+
+# ---------------------------------------------------------------------------
+# _percentile_from_histogram
+# ---------------------------------------------------------------------------
+
+
+def test_percentile_from_histogram_basic():
+    hist = [0] * 256
+    hist[20] = 10
+    hist[80] = 90
+    # total=100, 5th percentile threshold=5, cumulative hits 10 at index 20
+    assert imgcommon._percentile_from_histogram(hist, 5) == 20
+
+
+def test_percentile_from_histogram_empty():
+    hist = [0] * 256
+    assert imgcommon._percentile_from_histogram(hist, 5) == 0
+
+
+# ---------------------------------------------------------------------------
+# compute_auto_params
+# ---------------------------------------------------------------------------
+
+
+def test_compute_auto_params_solid_mid_gray():
+    img = _solid(8, 8, (127, 127, 127))
+    out = imgcommon.compute_auto_params(img)
+    assert out["brightness"] == pytest.approx(1.0039, abs=1e-3)
+    assert out["contrast"] == 2.5  # std==0 -> ratio blows up -> clamps high
+    # mean_sat==0 -> ratio blows up -> clamps high
+    assert out["saturate"] == 2.5
+    assert out["min_lum"] == 0.0
+
+
+def test_compute_auto_params_solid_near_black():
+    img = _solid(8, 8, (10, 10, 10))
+    out = imgcommon.compute_auto_params(img)
+    assert out["brightness"] == 2.5  # mean_lum=10 -> ratio clamps high
+    assert out["min_lum"] == pytest.approx(0.0808, abs=1e-3)
+
+
+def test_compute_auto_params_solid_white():
+    img = _solid(8, 8, (255, 255, 255))
+    out = imgcommon.compute_auto_params(img)
+    assert out["brightness"] == 0.5  # mean_lum=255 -> ratio clamps low
+    assert out["min_lum"] == 0.0
+
+
+def test_compute_auto_params_low_variance_gradient_boosts_contrast():
+    # 51px-wide gradient from gray 100 to 150: low std -> contrast pushed up
+    img = Image.new("RGB", (51, 4))
+    for x in range(51):
+        v = 100 + x
+        for y in range(4):
+            img.putpixel((x, y), (v, v, v))
+    out = imgcommon.compute_auto_params(img)
+    assert out["contrast"] > 1.0
+
+
+def test_compute_auto_params_clamped_to_bounds():
+    for color in [(0, 0, 0), (255, 255, 255), (1, 1, 1)]:
+        out = imgcommon.compute_auto_params(_solid(4, 4, color))
+        for key in ("brightness", "contrast", "saturate"):
+            assert 0.5 <= out[key] <= 2.5
+        assert 0.0 <= out["min_lum"] <= 0.3
 
