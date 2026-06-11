@@ -36,6 +36,8 @@ def image_to_ascii_html(
     text_scale: float,
     px_w: int = 0,
     px_h: int = 0,
+    monochrome: bool = False,
+    font_color: str = "#ffffff",
 ) -> str:
     if brightness != 1.0:
         img = ImageEnhance.Brightness(img).enhance(brightness)
@@ -68,6 +70,17 @@ def image_to_ascii_html(
 
     lines_html: list[str] = []
     for row in rows:
+        if monochrome:
+            text = "".join(c for _, _, _, c in row)
+            safe = (
+                text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+            )
+            lines_html.append(
+                f'<span style="color:{font_color}">{safe}</span>'
+            )
+            continue
         spans: list[str] = []
         i = 0
         while i < len(row):
