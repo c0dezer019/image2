@@ -133,7 +133,7 @@ _OLD_ENHANCE_DEFAULTS = {
 
 
 def resolve_enhance_params(
-    input_path: str,
+    img: Image.Image,
     contrast: float | None,
     brightness: float | None,
     saturate: float | None,
@@ -143,8 +143,12 @@ def resolve_enhance_params(
     """Fill in unset enhancement params from auto-detection or old defaults.
 
     Any of contrast/brightness/saturate/min_lum left as None is filled from
-    imgcommon.compute_auto_params(source image), unless no_auto is True, in
-    which case unset params fall back to the historical fixed defaults.
+    imgcommon.compute_auto_params(img), unless no_auto is True, in which
+    case unset params fall back to the historical fixed defaults.
+
+    Args:
+        img: Already-opened source image (used for auto-detection only;
+            not modified).
 
     Returns:
         (contrast, brightness, saturate, min_lum) fully resolved.
@@ -158,11 +162,7 @@ def resolve_enhance_params(
     if all(v is not None for v in requested.values()):
         return contrast, brightness, saturate, min_lum
 
-    if no_auto:
-        auto = _OLD_ENHANCE_DEFAULTS
-    else:
-        with Image.open(input_path) as img:
-            auto = compute_auto_params(img)
+    auto = _OLD_ENHANCE_DEFAULTS if no_auto else compute_auto_params(img)
 
     resolved = {
         key: (value if value is not None else auto[key])
@@ -176,7 +176,7 @@ def resolve_enhance_params(
     )
 
 
-def _render_ansi(args, width: int) -> None:
+def _render_ansi(args, width: int, img: Image.Image) -> None:
     mode = args.mode if args.mode is not None else "truecolor"
 
     base = (
@@ -191,7 +191,7 @@ def _render_ansi(args, width: int) -> None:
     )
 
     img = load_and_enhance(
-        args.input,
+        img,
         args.contrast,
         args.sharpness,
         args.brightness,
@@ -226,7 +226,7 @@ def _render_ansi(args, width: int) -> None:
         write_png_from_html(html, png_path, px_w, px_h, args.no_gpu)
 
 
-def _render_ascii(args, width: int) -> None:
+def _render_ascii(args, width: int, img: Image.Image) -> None:
     bg = args.bg if args.bg is not None else "#000000"
     font_size = (
         args.font_size
@@ -240,9 +240,6 @@ def _render_ascii(args, width: int) -> None:
         output_path = args.output if given_ext else args.output + ext
     else:
         output_path = os.path.splitext(args.input)[0] + "_ascii" + ext
-
-    with Image.open(args.input) as im:
-        img = im.copy()
 
     char_width_px = font_size * 0.6
 
@@ -304,9 +301,12 @@ def main():
         sys.exit(1)
 
     width = resolve_width(args.style, args.width)
+    with Image.open(args.input) as opened:
+        img = opened.convert("RGB")
+
     args.contrast, args.brightness, args.saturate, args.min_lum = (
         resolve_enhance_params(
-            args.input,
+            img,
             args.contrast,
             args.brightness,
             args.saturate,
@@ -315,9 +315,9 @@ def main():
         )
     )
     if args.style == "ansi":
-        _render_ansi(args, width)
+        _render_ansi(args, width, img)
     else:
-        _render_ascii(args, width)
+        _render_ascii(args, width, img)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -62,7 +62,10 @@ _GPU_FLAGS = [
 
 
 def _make_hti_mock(monkeypatch):
-    """Patch Html2Image and shutil.move; return (MockClass, mock_instance, mock_move)."""
+    """Patch Html2Image and shutil.move.
+
+    Returns (MockClass, mock_instance, mock_move).
+    """
     mock_hti = MagicMock()
     mock_cls = MagicMock(return_value=mock_hti)
     mock_move = MagicMock()
@@ -75,7 +78,9 @@ def test_write_png_screenshot_args(monkeypatch):
     """screenshot() called with correct html_str, save_as, and size."""
     mock_cls, mock_hti, _ = _make_hti_mock(monkeypatch)
 
-    imgcommon.write_png_from_html("<h1>hi</h1>", "out.png", 800, 600, no_gpu=False)
+    imgcommon.write_png_from_html(
+        "<h1>hi</h1>", "out.png", 800, 600, no_gpu=False
+    )
 
     mock_hti.screenshot.assert_called_once_with(
         html_str="<h1>hi</h1>",
@@ -110,13 +115,15 @@ def test_write_png_moves_file_when_out_path_has_dir(monkeypatch):
     """shutil.move called when out_path contains a directory component."""
     _, _, mock_move = _make_hti_mock(monkeypatch)
 
-    imgcommon.write_png_from_html("", "/tmp/subdir/out.png", 1, 1, no_gpu=False)
+    imgcommon.write_png_from_html(
+        "", "/tmp/subdir/out.png", 1, 1, no_gpu=False
+    )
 
     mock_move.assert_called_once_with("out.png", "/tmp/subdir/out.png")
 
 
 def test_write_png_skips_move_for_cwd_path(monkeypatch):
-    """shutil.move NOT called when out_path is a bare filename (no directory)."""
+    """shutil.move NOT called for a bare filename (no directory)."""
     _, _, mock_move = _make_hti_mock(monkeypatch)
 
     imgcommon.write_png_from_html("", "out.png", 1, 1, no_gpu=False)
@@ -127,14 +134,22 @@ def test_write_png_skips_move_for_cwd_path(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_load_and_enhance_returns_image(tmp_path):
-    p = tmp_path / "src.png"
-    _solid(8, 8).save(p)
+def test_load_and_enhance_returns_image():
+    img = _solid(8, 8)
     out = imgcommon.load_and_enhance(
-        str(p), contrast=1.5, sharpness=2.5, brightness=1.0, saturate=1.0
+        img, contrast=1.5, sharpness=2.5, brightness=1.0, saturate=1.0
     )
     assert isinstance(out, Image.Image)
     assert out.size == (8, 8)
+
+
+def test_load_and_enhance_does_not_mutate_input():
+    img = _solid(8, 8)
+    original = img.copy()
+    imgcommon.load_and_enhance(
+        img, contrast=2.0, sharpness=2.5, brightness=1.5, saturate=1.5
+    )
+    assert list(img.getdata()) == list(original.getdata())
 
 
 # ---------------------------------------------------------------------------
@@ -201,4 +216,3 @@ def test_compute_auto_params_clamped_to_bounds():
         for key in ("brightness", "contrast", "saturate"):
             assert 0.5 <= out[key] <= 2.5
         assert 0.0 <= out["min_lum"] <= 0.3
-

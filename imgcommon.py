@@ -26,13 +26,16 @@ def lift_luminance(
 
 
 def load_and_enhance(
-    path: str,
+    img: Image.Image,
     contrast: float,
     sharpness: float,
     brightness: float,
     saturate: float,
 ) -> Image.Image:
-    img = Image.open(path)
+    """Apply brightness/contrast/saturation/sharpness to an opened image.
+
+    Does not mutate ``img`` — each ImageEnhance step returns a new image.
+    """
     if brightness != 1.0:
         img = ImageEnhance.Brightness(img).enhance(brightness)
     img = ImageEnhance.Contrast(img).enhance(contrast)
