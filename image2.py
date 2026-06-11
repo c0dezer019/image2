@@ -30,6 +30,9 @@ ascii-only:
     -b, --bg          Background color (default: #000000)
     --font-size       Font size px (default: 4.0 HTML / 6.5 PNG)
     --select          Auto-highlight the text
+    --monochrome      Render all glyphs in a single solid color
+    --font-color      Solid font color (implies --monochrome,
+                      default #ffffff)
 
 ansi-only:
     --mode            truecolor (default) | 256 | bbs16
