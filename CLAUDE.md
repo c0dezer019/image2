@@ -21,5 +21,7 @@
 ## Conventions Not Enforced by Tooling
 
 - Tests live in `tests/`, not next to source.
-- Run tests: `venv/bin/pytest`
-- Lint: `venv/bin/flake8` (line-length 79 via Black config)
+- Run tests: `.venv/bin/pytest`
+- Lint: `.venv/bin/flake8` (line-length 79 via Black config)
+- Dev deps (pytest/flake8/black/Pillow/cairosvg) pinned in `requirements.txt`;
+  install via `.venv/bin/pip install -r requirements.txt`.
