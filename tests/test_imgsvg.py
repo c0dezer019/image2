@@ -43,6 +43,36 @@ def test_merge_runs_empty_input():
 
 
 # ---------------------------------------------------------------------------
+# _fit_viewbox
+# ---------------------------------------------------------------------------
+
+
+def test_fit_viewbox_matching_aspect_is_unchanged():
+    assert imgsvg._fit_viewbox(18.0, 8.0, 18, 8) == (18.0, 8.0, 0.0, 0.0)
+
+
+def test_fit_viewbox_wider_canvas_pads_width():
+    # content is square (20x20), canvas is 2x as wide -> pad width to 40,
+    # centering the original content with a 10px offset on each side.
+    view_w, view_h, x_off, y_off = imgsvg._fit_viewbox(20.0, 20.0, 40, 20)
+    assert (view_w, view_h) == (40.0, 20.0)
+    assert (x_off, y_off) == (10.0, 0.0)
+
+
+def test_fit_viewbox_taller_canvas_pads_height():
+    # content is 18x8 (aspect 2.25), canvas is square -> pad height to 18,
+    # centering the original content with a 5px offset top/bottom.
+    view_w, view_h, x_off, y_off = imgsvg._fit_viewbox(18.0, 8.0, 18, 18)
+    assert (view_w, view_h) == (18.0, 18.0)
+    assert (x_off, y_off) == (0.0, 5.0)
+
+
+def test_fit_viewbox_zero_dims_returns_unchanged():
+    assert imgsvg._fit_viewbox(0, 8.0, 18, 8) == (0, 8.0, 0.0, 0.0)
+    assert imgsvg._fit_viewbox(18.0, 8.0, 0, 8) == (18.0, 8.0, 0.0, 0.0)
+
+
+# ---------------------------------------------------------------------------
 # ascii_grid_to_svg
 # ---------------------------------------------------------------------------
 
@@ -101,6 +131,30 @@ def test_ascii_grid_to_svg_auto_select_adds_overlay_rects():
     assert overlay_rects
 
 
+def test_ascii_grid_to_svg_forced_canvas_aspect_pads_viewbox():
+    # Content is 18x8 (aspect 2.25). Forcing a square 18x18 canvas must
+    # pad the viewBox to 18x18 (matching the canvas aspect) so the bg rect
+    # ("100% 100%" of the viewBox) covers the full canvas with no
+    # transparent letterbox bars, and center the content via translate.
+    svg = imgsvg.ascii_grid_to_svg(
+        _ascii_grid(), font_size=10, bg_color="#000000", px_w=18, px_h=18
+    )
+    root = ET.fromstring(svg)
+
+    assert root.get("width") == "18"
+    assert root.get("height") == "18"
+    assert root.get("viewBox") == "0 0 18.0 18.0"
+
+    bg_rect = root.find(f"{SVG_NS}rect")
+    assert bg_rect.get("width") == "100%"
+    assert bg_rect.get("height") == "100%"
+
+    group = root.find(f"{SVG_NS}g")
+    assert group is not None
+    assert group.get("transform") == "translate(0.0,5.0)"
+    assert group.find(f"{SVG_NS}text") is not None
+
+
 # ---------------------------------------------------------------------------
 # ansi_grid_to_svg
 # ---------------------------------------------------------------------------
@@ -133,6 +187,32 @@ def test_ansi_grid_to_svg_top_and_bottom_rects():
     assert bot_rect.get("y") == "10.0"
     assert bot_rect.get("width") == "20"
     assert bot_rect.get("height") == "10.0"
+
+
+def test_ansi_grid_to_svg_forced_canvas_aspect_pads_viewbox():
+    # Content is 20x20 (square). Forcing a 40x20 (2:1) canvas must pad the
+    # viewBox width to 40 so the bg rect covers the full canvas, and
+    # center the original 20x20 content via translate.
+    grid = [
+        [((255, 0, 0), (0, 0, 255)), ((255, 0, 0), (0, 0, 255))],
+    ]
+    svg = imgsvg.ansi_grid_to_svg(
+        grid, cell_w=10, cell_h=20, px_w=40, px_h=20, bg_color="#000000"
+    )
+    root = ET.fromstring(svg)
+
+    assert root.get("width") == "40"
+    assert root.get("height") == "20"
+    assert root.get("viewBox") == "0 0 40.0 20"
+
+    bg_rect = root.find(f"{SVG_NS}rect")
+    assert bg_rect.get("width") == "100%"
+    assert bg_rect.get("height") == "100%"
+
+    group = root.find(f"{SVG_NS}g")
+    assert group is not None
+    assert group.get("transform") == "translate(10.0,0.0)"
+    assert group.find(f"{SVG_NS}rect") is not None
 
 
 # ---------------------------------------------------------------------------

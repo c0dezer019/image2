@@ -13,12 +13,60 @@ are supported:
 ``merge_runs`` is the shared color-run segmentation used by both.
 """
 
+import math
 import xml.sax.saxutils as sx
 
 try:
     import cairosvg  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover
     cairosvg = None  # type: ignore[assignment]
+
+
+def _fit_viewbox(
+    content_w: float, content_h: float, px_w: int, px_h: int
+) -> tuple[float, float, float, float]:
+    """Pad a content viewBox to match the canvas aspect ratio.
+
+    The SVG ``width``/``height`` attributes are set to ``px_w``/``px_h``
+    while ``viewBox`` describes the content's own coordinate space. With
+    the default ``preserveAspectRatio="xMidYMid meet"``, cairosvg scales
+    the viewBox to fit *inside* the canvas and leaves transparent
+    letterbox bars on the other axis when the aspect ratios differ — even
+    though the CLI advertises ``px_w``x``px_h`` as the output size.
+
+    To avoid that, pad the viewBox (on width or height, whichever is
+    short) so its aspect ratio exactly matches ``px_w``/``px_h``. A
+    same-aspect viewBox scales to fill the canvas with no gap, and a
+    background rect drawn at "100% 100%" of the (padded) viewBox then
+    covers the full canvas. The returned offsets center the original
+    content within the padded viewBox.
+
+    Args:
+        content_w: Natural content width (e.g. ``cols * cell_w``).
+        content_h: Natural content height (e.g. ``rows * cell_h``).
+        px_w: Requested canvas width in px.
+        px_h: Requested canvas height in px.
+
+    Returns:
+        ``(view_w, view_h, x_offset, y_offset)`` — the (possibly padded)
+        viewBox dimensions and the translation needed to center the
+        original content within it.
+    """
+    if not content_w or not content_h or not px_w or not px_h:
+        return content_w, content_h, 0.0, 0.0
+
+    canvas_aspect = px_w / px_h
+    content_aspect = content_w / content_h
+
+    if math.isclose(canvas_aspect, content_aspect, rel_tol=1e-6):
+        return content_w, content_h, 0.0, 0.0
+
+    if canvas_aspect > content_aspect:
+        view_w = content_h * canvas_aspect
+        return view_w, content_h, (view_w - content_w) / 2, 0.0
+
+    view_h = content_w / canvas_aspect
+    return content_w, view_h, 0.0, (view_h - content_h) / 2
 
 
 def merge_runs(
@@ -125,14 +173,20 @@ def ascii_grid_to_svg(
             y += half_row
         overlay = "".join(bands)
 
+    canvas_w, canvas_h, x_off, y_off = _fit_viewbox(
+        view_w, view_h, px_w, px_h
+    )
+    content = f'{"".join(text_els)}{overlay}'
+    if x_off or y_off:
+        content = f'<g transform="translate({x_off},{y_off})">{content}</g>'
+
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="{px_w}" height="{px_h}" '
-        f'viewBox="0 0 {view_w} {view_h}">'
+        f'viewBox="0 0 {canvas_w} {canvas_h}">'
         f'<rect width="100%" height="100%" fill="{bg_color}"/>'
         f'<style>text {{ font-family: monospace; font-size: {font_size}px; }}</style>'
-        f'{"".join(text_els)}'
-        f'{overlay}'
+        f'{content}'
         f'</svg>'
     )
 
@@ -190,12 +244,19 @@ def ansi_grid_to_svg(
                 f'fill="rgb({r},{g},{b})"/>'
             )
 
+    canvas_w, canvas_h, x_off, y_off = _fit_viewbox(
+        view_w, view_h, px_w, px_h
+    )
+    content = "".join(rects)
+    if x_off or y_off:
+        content = f'<g transform="translate({x_off},{y_off})">{content}</g>'
+
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="{px_w}" height="{px_h}" '
-        f'viewBox="0 0 {view_w} {view_h}">'
+        f'viewBox="0 0 {canvas_w} {canvas_h}">'
         f'<rect width="100%" height="100%" fill="{bg_color}"/>'
-        f'{"".join(rects)}'
+        f'{content}'
         f'</svg>'
     )
 
