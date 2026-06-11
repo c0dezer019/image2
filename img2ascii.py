@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # flake8: noqa: E501
-"""img2ascii.py — colored-ASCII render backend for ascii.
+"""img2ascii.py — colored-ASCII render backend for the img2 ascii subcommand.
 
 Maps each pixel's brightness to an ASCII glyph and colors it with the pixel's
-RGB, emitting HTML. CLI lives in ascii.py (`ascii --style ascii`, the default).
+RGB, emitting HTML. CLI lives in image2.py (`img2 ascii`, the default).
 """
 
 import sys
