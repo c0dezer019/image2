@@ -9,17 +9,14 @@ RGB, emitting HTML. CLI lives in ascii.py (`ascii --style ascii`, the default).
 import sys
 
 try:
-    from PIL import Image, ImageEnhance
+    from PIL import Image
 except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
 
-from imgcommon import lift_luminance
+from imgcommon import ascii_chars, build_ascii_grid, lift_luminance
 
-ascii_chars = (
-    "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
-)
-ascii_chars = ascii_chars[::-1]
+__all__ = ["ascii_chars", "lift_luminance", "image_to_ascii_html"]
 
 
 def image_to_ascii_html(
@@ -37,34 +34,9 @@ def image_to_ascii_html(
     px_w: int = 0,
     px_h: int = 0,
 ) -> str:
-    if brightness != 1.0:
-        img = ImageEnhance.Brightness(img).enhance(brightness)
-    img = ImageEnhance.Contrast(img).enhance(contrast)
-    if saturate != 1.0:
-        img = ImageEnhance.Color(img).enhance(saturate)
-    img = ImageEnhance.Sharpness(img).enhance(sharpness)
-
-    aspect = img.height / img.width
-    height = max(1, int(width * aspect * 0.75))
-    img = img.resize(  # type: ignore[arg-type]
-        (width, height), resample=Image.Resampling.LANCZOS
-    ).convert("RGB")
-
-    rows: list[list[tuple[int, int, int, str]]] = []
-    for y in range(height):
-        row: list[tuple[int, int, int, str]] = []
-        for x in range(width):
-            pixel = img.getpixel((x, y))
-            if isinstance(pixel, tuple):
-                r, g, b = int(pixel[0]), int(pixel[1]), int(pixel[2])
-            else:
-                p = int(pixel) if pixel is not None else 0
-                r, g, b = p, p, p
-            r, g, b = lift_luminance(r, g, b, min_lum)
-            lum = int(0.299 * r + 0.587 * g + 0.114 * b)
-            char_idx = int(lum / 255 * (len(ascii_chars) - 1))
-            row.append((r, g, b, ascii_chars[char_idx]))
-        rows.append(row)
+    rows = build_ascii_grid(
+        img, width, contrast, sharpness, brightness, min_lum, saturate
+    )
 
     lines_html: list[str] = []
     for row in rows:

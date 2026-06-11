@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "image2"
-version = "1.0.0"
+version = "1.1.0"
 description = "Convert images to colored ASCII or traditional ANSI art."
 requires-python = ">=3.14"
-dependencies = ["Pillow", "html2image"]
+dependencies = ["Pillow", "cairosvg"]
 
 [project.scripts]
 img2 = "image2:main"
 [tool.setuptools]
-py-modules = ["image2", "img2ansi", "img2ascii", "imgcommon"]
+py-modules = ["image2", "img2ansi", "img2ascii", "imgcommon", "imgsvg"]
 
 [tool.black]
 line-length = 79
