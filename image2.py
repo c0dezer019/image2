@@ -9,11 +9,16 @@ Usage:
 Shared options:
     -o, --output      Output path
     -w, --width       Character columns (default: ascii 350, ansi 80)
-    -c, --contrast    Contrast multiplier (default: 1.5)
+    -c, --contrast    Contrast multiplier (default: auto-detected)
     -s, --sharpness   Sharpness multiplier (default: 2.5)
-    -B, --brightness  Brightness multiplier (default: 1.0)
-    --saturate        Saturation multiplier (default: 1.0)
-    --min-lum         Minimum HLS luminance 0.0-1.0 (default: 0.0)
+    -B, --brightness  Brightness multiplier (default: auto-detected)
+    --saturate        Saturation multiplier (default: auto-detected)
+    --min-lum         Minimum HLS luminance 0.0-1.0 (default: auto-detected)
+    --no-auto         Disable auto-detection; use fixed defaults
+                      (contrast 1.5, brightness 1.0, saturate 1.0,
+                      min-lum 0.0) for any of the above not given.
+                      Sharpness is never auto-detected and is
+                      unaffected by this flag.
     --no-gpu          Disable GPU in html2image (PNG only)
     -h, --help        Show help
 
@@ -49,6 +54,7 @@ except ImportError:
 import img2ansi
 import img2ascii
 from imgcommon import (
+    compute_auto_params,
     load_and_enhance,
     resize_for,
     lift_luminance,
@@ -62,11 +68,12 @@ def _shared_parser() -> argparse.ArgumentParser:
     p.add_argument("input", nargs="?")
     p.add_argument("-o", "--output")
     p.add_argument("-w", "--width", type=int, default=None)
-    p.add_argument("-c", "--contrast", type=float, default=1.5)
+    p.add_argument("-c", "--contrast", type=float, default=None)
     p.add_argument("-s", "--sharpness", type=float, default=2.5)
-    p.add_argument("-B", "--brightness", type=float, default=1.0)
-    p.add_argument("--saturate", type=float, default=1.0)
-    p.add_argument("--min-lum", type=float, default=0.0)
+    p.add_argument("-B", "--brightness", type=float, default=None)
+    p.add_argument("--saturate", type=float, default=None)
+    p.add_argument("--min-lum", type=float, default=None)
+    p.add_argument("--no-auto", action="store_true", default=False)
     p.add_argument("--no-gpu", action="store_true", default=False)
     return p
 
@@ -116,7 +123,60 @@ def resolve_width(style: str, width: int | None) -> int:
     return 350 if style == "ascii" else 80
 
 
-def _render_ansi(args, width: int) -> None:
+# Old fixed defaults, used when --no-auto is passed.
+_OLD_ENHANCE_DEFAULTS = {
+    "contrast": 1.5,
+    "brightness": 1.0,
+    "saturate": 1.0,
+    "min_lum": 0.0,
+}
+
+
+def resolve_enhance_params(
+    img: Image.Image,
+    contrast: float | None,
+    brightness: float | None,
+    saturate: float | None,
+    min_lum: float | None,
+    no_auto: bool,
+) -> tuple[float, float, float, float]:
+    """Fill in unset enhancement params from auto-detection or old defaults.
+
+    Any of contrast/brightness/saturate/min_lum left as None is filled from
+    imgcommon.compute_auto_params(img), unless no_auto is True, in which
+    case unset params fall back to the historical fixed defaults.
+
+    Args:
+        img: Already-opened source image (used for auto-detection only;
+            not modified).
+
+    Returns:
+        (contrast, brightness, saturate, min_lum) fully resolved.
+    """
+    requested = {
+        "contrast": contrast,
+        "brightness": brightness,
+        "saturate": saturate,
+        "min_lum": min_lum,
+    }
+    if all(v is not None for v in requested.values()):
+        return contrast, brightness, saturate, min_lum
+
+    auto = _OLD_ENHANCE_DEFAULTS if no_auto else compute_auto_params(img)
+
+    resolved = {
+        key: (value if value is not None else auto[key])
+        for key, value in requested.items()
+    }
+    return (
+        resolved["contrast"],
+        resolved["brightness"],
+        resolved["saturate"],
+        resolved["min_lum"],
+    )
+
+
+def _render_ansi(args, width: int, img: Image.Image) -> None:
     mode = args.mode if args.mode is not None else "truecolor"
 
     base = (
@@ -131,7 +191,7 @@ def _render_ansi(args, width: int) -> None:
     )
 
     img = load_and_enhance(
-        args.input,
+        img,
         args.contrast,
         args.sharpness,
         args.brightness,
@@ -166,7 +226,7 @@ def _render_ansi(args, width: int) -> None:
         write_png_from_html(html, png_path, px_w, px_h, args.no_gpu)
 
 
-def _render_ascii(args, width: int) -> None:
+def _render_ascii(args, width: int, img: Image.Image) -> None:
     bg = args.bg if args.bg is not None else "#000000"
     font_size = (
         args.font_size
@@ -180,9 +240,6 @@ def _render_ascii(args, width: int) -> None:
         output_path = args.output if given_ext else args.output + ext
     else:
         output_path = os.path.splitext(args.input)[0] + "_ascii" + ext
-
-    with Image.open(args.input) as im:
-        img = im.copy()
 
     char_width_px = font_size * 0.6
 
@@ -244,10 +301,23 @@ def main():
         sys.exit(1)
 
     width = resolve_width(args.style, args.width)
+    with Image.open(args.input) as opened:
+        img = opened.convert("RGB")
+
+    args.contrast, args.brightness, args.saturate, args.min_lum = (
+        resolve_enhance_params(
+            img,
+            args.contrast,
+            args.brightness,
+            args.saturate,
+            args.min_lum,
+            args.no_auto,
+        )
+    )
     if args.style == "ansi":
-        _render_ansi(args, width)
+        _render_ansi(args, width, img)
     else:
-        _render_ascii(args, width)
+        _render_ascii(args, width, img)
 
 
 if __name__ == "__main__":

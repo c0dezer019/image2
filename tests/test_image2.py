@@ -5,6 +5,7 @@ import pytest
 from PIL import Image
 
 import image2
+import imgcommon
 
 
 def test_ascii_subcommand_sets_style():
@@ -72,7 +73,9 @@ def test_ansi_writes_ans_file(tmp_path, monkeypatch):
 def test_ascii_html_writes_html_file(tmp_path, monkeypatch):
     src = _tiny_image(tmp_path)
     out = str(tmp_path / "art.html")
-    monkeypatch.setattr(sys, "argv", ["img2", "ascii", src, "--html", "-o", out])
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--html", "-o", out]
+    )
     image2.main()
     assert os.path.exists(out)
     assert "<pre>" in open(out, encoding="utf-8").read()
@@ -92,3 +95,83 @@ def test_ansi_default_output_path(tmp_path, monkeypatch):
     image2.main()
     expected = os.path.splitext(src)[0] + "_ansi.ans"
     assert os.path.exists(expected)
+
+
+def _tiny_pil_image():
+    return Image.new("RGB", (4, 4), (200, 100, 50))
+
+
+@pytest.mark.parametrize(
+    "extra_args, out_name",
+    [
+        (["ansi"], "art.ans"),
+        (["ascii", "--html"], "art.html"),
+    ],
+)
+def test_main_opens_source_image_only_once(
+    tmp_path, monkeypatch, extra_args, out_name
+):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / out_name)
+    style, *flags = extra_args
+    monkeypatch.setattr(
+        sys, "argv", ["img2", style, src, *flags, "-o", out]
+    )
+
+    real_open = Image.open
+    calls = []
+
+    def counting_open(fp, *args, **kwargs):
+        calls.append(fp)
+        return real_open(fp, *args, **kwargs)
+
+    monkeypatch.setattr(Image, "open", counting_open)
+    image2.main()
+    assert calls.count(src) == 1
+
+
+def test_resolve_enhance_params_all_explicit_skips_image():
+    # bogus non-Image sentinel proves the image is never touched when
+    # nothing is None
+    result = image2.resolve_enhance_params(
+        object(), 2.0, 1.1, 0.9, 0.05, False
+    )
+    assert result == (2.0, 1.1, 0.9, 0.05)
+
+
+def test_resolve_enhance_params_auto_fills_unset():
+    img = _tiny_pil_image()
+    expected = imgcommon.compute_auto_params(img)
+    result = image2.resolve_enhance_params(img, None, None, None, None, False)
+    assert result == (
+        expected["contrast"],
+        expected["brightness"],
+        expected["saturate"],
+        expected["min_lum"],
+    )
+
+
+def test_resolve_enhance_params_no_auto_uses_old_defaults():
+    result = image2.resolve_enhance_params(
+        object(), None, None, None, None, True
+    )
+    assert result == (1.5, 1.0, 1.0, 0.0)
+
+
+def test_resolve_enhance_params_partial_override_with_auto():
+    img = _tiny_pil_image()
+    expected = imgcommon.compute_auto_params(img)
+    result = image2.resolve_enhance_params(img, None, 1.2, None, None, False)
+    assert result == (
+        expected["contrast"],
+        1.2,
+        expected["saturate"],
+        expected["min_lum"],
+    )
+
+
+def test_resolve_enhance_params_partial_override_no_auto():
+    result = image2.resolve_enhance_params(
+        object(), 2.0, None, None, None, True
+    )
+    assert result == (2.0, 1.0, 1.0, 0.0)
