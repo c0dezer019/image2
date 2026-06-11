@@ -158,6 +158,42 @@ def test_resolve_enhance_params_no_auto_uses_old_defaults():
     assert result == (1.5, 1.0, 1.0, 0.0)
 
 
+def test_invert_flag_available_for_both_styles():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg", "--invert"])
+    assert args.invert is True
+    args = p.parse_args(["ansi", "in.jpg", "--invert"])
+    assert args.invert is True
+
+
+def test_invert_flag_defaults_false():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg"])
+    assert args.invert is False
+
+
+def test_ansi_invert_changes_output(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out_normal = str(tmp_path / "normal.ans")
+    out_inverted = str(tmp_path / "inverted.ans")
+
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ansi", src, "-o", out_normal, "--no-auto"]
+    )
+    image2.main()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["img2", "ansi", src, "-o", out_inverted, "--no-auto", "--invert"],
+    )
+    image2.main()
+
+    normal = open(out_normal, encoding="utf-8").read()
+    inverted = open(out_inverted, encoding="utf-8").read()
+    assert normal != inverted
+
+
 def test_resolve_enhance_params_partial_override_with_auto():
     img = _tiny_pil_image()
     expected = imgcommon.compute_auto_params(img)
