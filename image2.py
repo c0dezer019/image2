@@ -20,6 +20,7 @@ Shared options:
                       Sharpness is never auto-detected and is
                       unaffected by this flag.
     --no-gpu          Disable GPU in html2image (PNG only)
+    --invert          Invert source image colors before rendering
     -h, --help        Show help
 
 ascii-only:
