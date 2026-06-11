@@ -28,7 +28,7 @@ ascii-only:
     --img-width       Force output PNG pixel width
     --img-height      Force output PNG pixel height
     -b, --bg          Background color (default: #000000)
-    --font-size       Font size px (default: 4.0 HTML / 6.5 PNG)
+    --font-size       Font size px (default: 4.0 HTML / 13 PNG)
     --select          Auto-highlight the text
 
 ansi-only:
