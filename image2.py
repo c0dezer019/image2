@@ -103,6 +103,8 @@ def build_parser() -> argparse.ArgumentParser:
     ascii_p.add_argument("-b", "--bg", default=None)
     ascii_p.add_argument("--font-size", type=float, default=None)
     ascii_p.add_argument("--select", action="store_true", default=False)
+    ascii_p.add_argument("--monochrome", action="store_true", default=False)
+    ascii_p.add_argument("--font-color", default=None)
 
     ansi_p = sub.add_parser(
         "ansi",
@@ -235,6 +237,8 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
         if args.font_size is not None
         else (4.0 if args.html else 13)
     )
+    monochrome = args.monochrome or args.font_color is not None
+    font_color = args.font_color or "#ffffff"
 
     ext = ".html" if args.html else ".png"
     if args.output:
@@ -283,6 +287,8 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
         1.0,
         px_w,
         px_h,
+        monochrome,
+        font_color,
     )
 
     if args.html:

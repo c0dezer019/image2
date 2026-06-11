@@ -211,3 +211,70 @@ def test_resolve_enhance_params_partial_override_no_auto():
         object(), 2.0, None, None, None, True
     )
     assert result == (2.0, 1.0, 1.0, 0.0)
+
+
+def test_monochrome_flags_available_for_ascii():
+    p = image2.build_parser()
+    args = p.parse_args(
+        ["ascii", "in.jpg", "--monochrome", "--font-color", "#00ff00"]
+    )
+    assert args.monochrome is True
+    assert args.font_color == "#00ff00"
+
+
+def test_monochrome_flags_default():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg"])
+    assert args.monochrome is False
+    assert args.font_color is None
+
+
+def test_monochrome_flag_rejected_under_ansi():
+    with pytest.raises(SystemExit):
+        image2.build_parser().parse_args(["ansi", "in.jpg", "--monochrome"])
+
+
+def test_font_color_flag_rejected_under_ansi():
+    with pytest.raises(SystemExit):
+        image2.build_parser().parse_args(
+            ["ansi", "in.jpg", "--font-color", "#00ff00"]
+        )
+
+
+def test_ascii_monochrome_default_color(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.html")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["img2", "ascii", src, "--html", "-o", out, "--monochrome"],
+    )
+    image2.main()
+    html = open(out, encoding="utf-8").read()
+    assert "color:#ffffff" in html
+    assert "rgb(" not in html
+
+
+def test_ascii_font_color_implies_monochrome(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.html")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["img2", "ascii", src, "--html", "-o", out, "--font-color", "#00ff00"],
+    )
+    image2.main()
+    html = open(out, encoding="utf-8").read()
+    assert "color:#00ff00" in html
+    assert "rgb(" not in html
+
+
+def test_ascii_no_monochrome_uses_per_pixel_color(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.html")
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--html", "-o", out]
+    )
+    image2.main()
+    html = open(out, encoding="utf-8").read()
+    assert "rgb(" in html
