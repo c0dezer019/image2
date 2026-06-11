@@ -19,7 +19,8 @@ Shared options:
                       min-lum 0.0) for any of the above not given.
                       Sharpness is never auto-detected and is
                       unaffected by this flag.
-    --no-gpu          Disable GPU in html2image (PNG only)
+    --no-gpu          Deprecated, ignored (no-op; PNG output no longer
+                      uses a GPU-backed renderer)
     -h, --help        Show help
 
 ascii-only:
@@ -27,7 +28,7 @@ ascii-only:
     --img-width       Force output PNG pixel width
     --img-height      Force output PNG pixel height
     -b, --bg          Background color (default: #000000)
-    --font-size       Font size px (default: 4.0 HTML / 6.5 PNG)
+    --font-size       Font size px (default: 4.0 HTML / 13 PNG)
     --select          Auto-highlight the text
 
 ansi-only:
@@ -54,12 +55,14 @@ except ImportError:
 import img2ansi
 import img2ascii
 from imgcommon import (
+    build_ascii_grid,
+    build_halfblock_grid,
     compute_auto_params,
     load_and_enhance,
     resize_for,
     lift_luminance,
-    write_png_from_html,
 )
+from imgsvg import ascii_grid_to_svg, ansi_grid_to_svg, render_svg_to_png
 
 
 def _shared_parser() -> argparse.ArgumentParser:
@@ -218,12 +221,13 @@ def _render_ansi(args, width: int, img: Image.Image) -> None:
         char_width_px = font_size * 0.6
         cols = img.width
         rows = img.height // 2
-        html = img2ansi.ansi_image_to_html(
-            img, bg_color="#000000", font_size=font_size
-        )
+        grid = build_halfblock_grid(img)
         px_w = round(cols * char_width_px)
         px_h = round(rows * font_size)
-        write_png_from_html(html, png_path, px_w, px_h, args.no_gpu)
+        svg = ansi_grid_to_svg(
+            grid, char_width_px, font_size, px_w, px_h, "#000000"
+        )
+        render_svg_to_png(svg, png_path)
 
 
 def _render_ascii(args, width: int, img: Image.Image) -> None:
@@ -258,38 +262,48 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
     if args.width is None:
         width = max(1, int((px_w - 2) / char_width_px))
 
-    # Canvas must fit the rendered ascii grid exactly (mirrors the
-    # row/col math in img2ascii.image_to_ascii_html), else the centered
-    # <pre> gets clipped top/bottom by overflow:hidden.
-    aspect = img.height / img.width
-    ascii_rows = max(1, int(width * aspect * 0.75))
-    px_w = round(width * char_width_px)
-    px_h = round(ascii_rows * (font_size * 0.8))
-
-    print("Generating HTML...")
-    html = img2ascii.image_to_ascii_html(
-        img,
-        width,
-        args.contrast,
-        args.sharpness,
-        args.brightness,
-        args.min_lum,
-        args.saturate,
-        bg,
-        font_size,
-        args.select,
-        1.0,
-        px_w,
-        px_h,
-    )
-
     if args.html:
+        # Canvas must fit the rendered ascii grid exactly (mirrors the
+        # row/col math in img2ascii.image_to_ascii_html), else the centered
+        # <pre> gets clipped top/bottom by overflow:hidden.
+        aspect = img.height / img.width
+        ascii_rows = max(1, int(width * aspect * 0.75))
+        px_w = round(width * char_width_px)
+        px_h = round(ascii_rows * (font_size * 0.8))
+
+        print("Generating HTML...")
+        html = img2ascii.image_to_ascii_html(
+            img,
+            width,
+            args.contrast,
+            args.sharpness,
+            args.brightness,
+            args.min_lum,
+            args.saturate,
+            bg,
+            font_size,
+            args.select,
+            1.0,
+            px_w,
+            px_h,
+        )
         html_path = os.path.splitext(output_path)[0] + ".html"
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html)
         print(f"HTML locked in at: {html_path}")
     else:
-        write_png_from_html(html, output_path, px_w, px_h, args.no_gpu)
+        print("Generating the ASCII grid...")
+        grid = build_ascii_grid(
+            img,
+            width,
+            args.contrast,
+            args.sharpness,
+            args.brightness,
+            args.min_lum,
+            args.saturate,
+        )
+        svg = ascii_grid_to_svg(grid, font_size, bg, px_w, px_h, args.select)
+        render_svg_to_png(svg, output_path)
 
 
 def main():

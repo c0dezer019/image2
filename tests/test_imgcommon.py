@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pytest
 
 import imgcommon
@@ -44,91 +42,64 @@ def test_resize_for_block_aspect():
 
 
 # ---------------------------------------------------------------------------
-# write_png_from_html
+# build_ascii_grid / build_halfblock_grid
 # ---------------------------------------------------------------------------
 
-_BASE_FLAGS = [
-    "--hide-scrollbars",
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-background-networking",
-    "--log-level=3",
-]
-_GPU_FLAGS = [
-    "--disable-gpu",
-    "--disable-software-rasterizer",
-    "--disable-dev-shm-usage",
-]
 
-
-def _make_hti_mock(monkeypatch):
-    """Patch Html2Image and shutil.move.
-
-    Returns (MockClass, mock_instance, mock_move).
-    """
-    mock_hti = MagicMock()
-    mock_cls = MagicMock(return_value=mock_hti)
-    mock_move = MagicMock()
-    monkeypatch.setattr("imgcommon.Html2Image", mock_cls)
-    monkeypatch.setattr("imgcommon.shutil.move", mock_move)
-    return mock_cls, mock_hti, mock_move
-
-
-def test_write_png_screenshot_args(monkeypatch):
-    """screenshot() called with correct html_str, save_as, and size."""
-    mock_cls, mock_hti, _ = _make_hti_mock(monkeypatch)
-
-    imgcommon.write_png_from_html(
-        "<h1>hi</h1>", "out.png", 800, 600, no_gpu=False
+def test_build_ascii_grid_dimensions_and_chars():
+    img = _solid(8, 8, (255, 255, 255))
+    grid = imgcommon.build_ascii_grid(
+        img,
+        width=4,
+        contrast=1.0,
+        sharpness=1.0,
+        brightness=1.0,
+        min_lum=0.0,
+        saturate=1.0,
     )
+    # height = max(1, int(4 * (8/8) * 0.75)) = 3
+    assert len(grid) == 3
+    assert all(len(row) == 4 for row in grid)
+    # solid white -> max luminance -> last (brightest) glyph everywhere
+    r, g, b, ch = grid[0][0]
+    assert (r, g, b) == (255, 255, 255)
+    assert ch == imgcommon.ascii_chars[-1]
 
-    mock_hti.screenshot.assert_called_once_with(
-        html_str="<h1>hi</h1>",
-        save_as="out.png",
-        size=(800, 600),
+
+def test_build_ascii_grid_min_lum_lifts_dark_pixel():
+    img = _solid(4, 4, (0, 0, 0))
+    grid = imgcommon.build_ascii_grid(
+        img,
+        width=2,
+        contrast=1.0,
+        sharpness=1.0,
+        brightness=1.0,
+        min_lum=0.5,
+        saturate=1.0,
     )
+    r, g, b, _ = grid[0][0]
+    assert r == g == b
+    assert r > 0
 
 
-def test_write_png_default_flags_no_gpu_false(monkeypatch):
-    """no_gpu=False → only base flags passed to Html2Image."""
-    mock_cls, _, _ = _make_hti_mock(monkeypatch)
+def test_build_halfblock_grid_pairs_top_and_bottom():
+    img = Image.new("RGB", (2, 2))
+    img.putpixel((0, 0), (255, 0, 0))
+    img.putpixel((1, 0), (0, 255, 0))
+    img.putpixel((0, 1), (0, 0, 255))
+    img.putpixel((1, 1), (255, 255, 0))
 
-    imgcommon.write_png_from_html("", "out.png", 1, 1, no_gpu=False)
+    grid = imgcommon.build_halfblock_grid(img)
 
-    mock_cls.assert_called_once_with(
-        custom_flags=_BASE_FLAGS, disable_logging=True
-    )
-
-
-def test_write_png_extra_flags_no_gpu_true(monkeypatch):
-    """no_gpu=True → base flags + three disable-gpu flags."""
-    mock_cls, _, _ = _make_hti_mock(monkeypatch)
-
-    imgcommon.write_png_from_html("", "out.png", 1, 1, no_gpu=True)
-
-    mock_cls.assert_called_once_with(
-        custom_flags=_BASE_FLAGS + _GPU_FLAGS, disable_logging=True
-    )
+    assert len(grid) == 1
+    assert grid[0][0] == ((255, 0, 0), (0, 0, 255))
+    assert grid[0][1] == ((0, 255, 0), (255, 255, 0))
 
 
-def test_write_png_moves_file_when_out_path_has_dir(monkeypatch):
-    """shutil.move called when out_path contains a directory component."""
-    _, _, mock_move = _make_hti_mock(monkeypatch)
-
-    imgcommon.write_png_from_html(
-        "", "/tmp/subdir/out.png", 1, 1, no_gpu=False
-    )
-
-    mock_move.assert_called_once_with("out.png", "/tmp/subdir/out.png")
-
-
-def test_write_png_skips_move_for_cwd_path(monkeypatch):
-    """shutil.move NOT called for a bare filename (no directory)."""
-    _, _, mock_move = _make_hti_mock(monkeypatch)
-
-    imgcommon.write_png_from_html("", "out.png", 1, 1, no_gpu=False)
-
-    mock_move.assert_not_called()
+def test_build_halfblock_grid_drops_trailing_odd_row():
+    img = Image.new("RGB", (1, 3), (10, 20, 30))
+    grid = imgcommon.build_halfblock_grid(img)
+    assert len(grid) == 1
 
 
 # ---------------------------------------------------------------------------

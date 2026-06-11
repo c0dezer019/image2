@@ -15,6 +15,8 @@ except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
 
+from imgcommon import build_halfblock_grid
+
 UPPER_HALF = "▀"  # ▀
 
 # Classic 16-color CP437/VGA palette: (r, g, b, fg_sgr, bg_sgr)
@@ -91,67 +93,10 @@ def _cell_escape(
 
 def image_to_ansi(img: Image.Image, mode: str = "truecolor") -> str:
     """Render an RGB image to ANSI half-block art. Samples 2 rows per cell."""
-    img = img.convert("RGB")
-    w, h = img.size
-    rows = h // 2
+    grid = build_halfblock_grid(img)
     lines: list[str] = []
-    for cy in range(rows):
-        y = cy * 2
-        cells: list[str] = []
-        for x in range(w):
-            top = img.getpixel((x, y))
-            bot = img.getpixel((x, y + 1))
-            cells.append(_cell_escape(top, bot, mode))
+    for row in grid:
+        cells = [_cell_escape(top, bot, mode) for top, bot in row]
         lines.append("".join(cells) + "\x1b[0m")
     return "\n".join(lines)
-
-
-def ansi_image_to_html(
-    img: Image.Image,
-    bg_color: str,
-    font_size: float,
-) -> str:
-    """Render the half-block art to HTML for html2image rasterization.
-
-    Always truecolor in the PNG preview; the .ans file carries the
-    quantized version for the chosen mode.
-    """
-    img = img.convert("RGB")
-    w, h = img.size
-    rows = h // 2
-    lines_html: list[str] = []
-    for cy in range(rows):
-        y = cy * 2
-        spans: list[str] = []
-        for x in range(w):
-            tr, tg, tb = img.getpixel((x, y))
-            br, bg_, bb = img.getpixel((x, y + 1))
-            spans.append(
-                f'<span style="color:rgb({tr},{tg},{tb});'
-                f'background:rgb({br},{bg_},{bb})">{UPPER_HALF}</span>'
-            )
-        lines_html.append("".join(spans))
-    body = "<br>".join(lines_html)
-    return f"""<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><style>
-  body {{
-    background:{bg_color};
-    margin:0;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    min-height:100vh;
-  }}
-  pre {{
-    font-family:'Courier New',Courier,monospace;
-    font-size:{font_size}px;
-    line-height:{font_size}px;
-    letter-spacing:0;
-    white-space:pre;
-    margin:0;
-  }}
-</style></head>
-<body><pre>{body}</pre></body>
-</html>"""
 
