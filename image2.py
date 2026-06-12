@@ -21,6 +21,7 @@ Shared options:
                       unaffected by this flag.
     --no-gpu          Deprecated, ignored (no-op; PNG output no longer
                       uses a GPU-backed renderer)
+    --invert          Invert source image colors before rendering
     -h, --help        Show help
 
 ascii-only:
@@ -47,7 +48,7 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageOps
 except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
@@ -78,6 +79,7 @@ def _shared_parser() -> argparse.ArgumentParser:
     p.add_argument("--min-lum", type=float, default=None)
     p.add_argument("--no-auto", action="store_true", default=False)
     p.add_argument("--no-gpu", action="store_true", default=False)
+    p.add_argument("--invert", action="store_true", default=False)
     return p
 
 
@@ -317,6 +319,9 @@ def main():
     width = resolve_width(args.style, args.width)
     with Image.open(args.input) as opened:
         img = opened.convert("RGB")
+
+    if args.invert:
+        img = ImageOps.invert(img)
 
     args.contrast, args.brightness, args.saturate, args.min_lum = (
         resolve_enhance_params(
