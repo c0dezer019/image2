@@ -53,7 +53,7 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 try:
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageFilter, ImageOps
 except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
@@ -337,6 +337,9 @@ def main():
 
     if args.invert:
         img = ImageOps.invert(img)
+
+    if args.blur > 0:
+        img = img.filter(ImageFilter.GaussianBlur(radius=args.blur))
 
     args.contrast, args.brightness, args.saturate, args.min_lum = (
         resolve_enhance_params(

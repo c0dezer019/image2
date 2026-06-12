@@ -60,6 +60,26 @@ def _tiny_image(tmp_path):
     return str(path)
 
 
+def _noisy_image(tmp_path):
+    import random
+
+    path = tmp_path / "noisy.png"
+    img = Image.new("RGB", (8, 8))
+    rng = random.Random(0)
+    for y in range(8):
+        for x in range(8):
+            img.putpixel(
+                (x, y),
+                (
+                    rng.randint(0, 255),
+                    rng.randint(0, 255),
+                    rng.randint(0, 255),
+                ),
+            )
+    img.save(path)
+    return str(path)
+
+
 def test_ansi_writes_ans_file(tmp_path, monkeypatch):
     src = _tiny_image(tmp_path)
     out = str(tmp_path / "art.ans")
@@ -184,6 +204,53 @@ def test_blur_flag_available_for_both_styles():
     assert args.blur == 1.5
     args = p.parse_args(["ansi", "in.jpg", "--blur", "1.5"])
     assert args.blur == 1.5
+
+
+def test_ansi_blur_changes_output(tmp_path, monkeypatch):
+    src = _noisy_image(tmp_path)
+    out_normal = str(tmp_path / "normal.ans")
+    out_blurred = str(tmp_path / "blurred.ans")
+
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ansi", src, "-o", out_normal, "--no-auto"]
+    )
+    image2.main()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["img2", "ansi", src, "-o", out_blurred, "--no-auto", "--blur", "2.0"],
+    )
+    image2.main()
+
+    normal = open(out_normal, encoding="utf-8").read()
+    blurred = open(out_blurred, encoding="utf-8").read()
+    assert normal != blurred
+
+
+def test_ansi_blur_zero_is_noop(tmp_path, monkeypatch):
+    src = _noisy_image(tmp_path)
+    out_default = str(tmp_path / "default.ans")
+    out_explicit_zero = str(tmp_path / "explicit_zero.ans")
+
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ansi", src, "-o", out_default, "--no-auto"]
+    )
+    image2.main()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "img2", "ansi", src, "-o", out_explicit_zero,
+            "--no-auto", "--blur", "0",
+        ],
+    )
+    image2.main()
+
+    default = open(out_default, encoding="utf-8").read()
+    explicit_zero = open(out_explicit_zero, encoding="utf-8").read()
+    assert default == explicit_zero
 
 
 def test_ansi_invert_changes_output(tmp_path, monkeypatch):
