@@ -22,6 +22,8 @@ Shared options:
     --no-gpu          Deprecated, ignored (no-op; PNG output no longer
                       uses a GPU-backed renderer)
     --invert          Invert source image colors before rendering
+    --blur            Gaussian blur radius applied before processing
+                      (default: 0.0, disabled)
     -h, --help        Show help
 
 ascii-only:
@@ -51,7 +53,7 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 try:
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageFilter, ImageOps
 except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
@@ -83,6 +85,7 @@ def _shared_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-auto", action="store_true", default=False)
     p.add_argument("--no-gpu", action="store_true", default=False)
     p.add_argument("--invert", action="store_true", default=False)
+    p.add_argument("--blur", type=float, default=0.0)
     return p
 
 
@@ -334,6 +337,9 @@ def main():
 
     if args.invert:
         img = ImageOps.invert(img)
+
+    if args.blur > 0:
+        img = img.filter(ImageFilter.GaussianBlur(radius=args.blur))
 
     args.contrast, args.brightness, args.saturate, args.min_lum = (
         resolve_enhance_params(
