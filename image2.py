@@ -21,6 +21,7 @@ Shared options:
                       unaffected by this flag.
     --no-gpu          Deprecated, ignored (no-op; PNG output no longer
                       uses a GPU-backed renderer)
+    --invert          Invert source image colors before rendering
     -h, --help        Show help
 
 ascii-only:
@@ -30,6 +31,9 @@ ascii-only:
     -b, --bg          Background color (default: #000000)
     --font-size       Font size px (default: 4.0 HTML / 13 PNG)
     --select          Auto-highlight the text
+    --monochrome      Render all glyphs in a single solid color
+    --font-color      Solid font color (implies --monochrome,
+                      default #ffffff)
 
 ansi-only:
     --mode            truecolor (default) | 256 | bbs16
@@ -47,7 +51,7 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageOps
 except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
@@ -78,6 +82,7 @@ def _shared_parser() -> argparse.ArgumentParser:
     p.add_argument("--min-lum", type=float, default=None)
     p.add_argument("--no-auto", action="store_true", default=False)
     p.add_argument("--no-gpu", action="store_true", default=False)
+    p.add_argument("--invert", action="store_true", default=False)
     return p
 
 
@@ -104,6 +109,8 @@ def build_parser() -> argparse.ArgumentParser:
     ascii_p.add_argument("-b", "--bg", default=None)
     ascii_p.add_argument("--font-size", type=float, default=None)
     ascii_p.add_argument("--select", action="store_true", default=False)
+    ascii_p.add_argument("--monochrome", action="store_true", default=False)
+    ascii_p.add_argument("--font-color", default=None)
 
     ansi_p = sub.add_parser(
         "ansi",
@@ -237,6 +244,8 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
         if args.font_size is not None
         else (4.0 if args.html else 13)
     )
+    monochrome = args.monochrome or args.font_color is not None
+    font_color = args.font_color or "#ffffff"
 
     ext = ".html" if args.html else ".png"
     if args.output:
@@ -286,6 +295,8 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
             1.0,
             px_w,
             px_h,
+            monochrome,
+            font_color,
         )
         html_path = os.path.splitext(output_path)[0] + ".html"
         with open(html_path, "w", encoding="utf-8") as f:
@@ -302,7 +313,10 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
             args.min_lum,
             args.saturate,
         )
-        svg = ascii_grid_to_svg(grid, font_size, bg, px_w, px_h, args.select)
+        svg = ascii_grid_to_svg(
+            grid, font_size, bg, px_w, px_h, args.select,
+            monochrome, font_color,
+        )
         render_svg_to_png(svg, output_path)
 
 
@@ -317,6 +331,9 @@ def main():
     width = resolve_width(args.style, args.width)
     with Image.open(args.input) as opened:
         img = opened.convert("RGB")
+
+    if args.invert:
+        img = ImageOps.invert(img)
 
     args.contrast, args.brightness, args.saturate, args.min_lum = (
         resolve_enhance_params(
