@@ -313,7 +313,10 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
             args.min_lum,
             args.saturate,
         )
-        svg = ascii_grid_to_svg(grid, font_size, bg, px_w, px_h, args.select)
+        svg = ascii_grid_to_svg(
+            grid, font_size, bg, px_w, px_h, args.select,
+            monochrome, font_color,
+        )
         render_svg_to_png(svg, output_path)
 
 

@@ -112,6 +112,8 @@ def ascii_grid_to_svg(
     px_w: int,
     px_h: int,
     auto_select: bool = False,
+    monochrome: bool = False,
+    font_color: str = "#ffffff",
 ) -> str:
     """Render a per-pixel ascii grid to an SVG document.
 
@@ -128,6 +130,10 @@ def ascii_grid_to_svg(
         px_h: Output height in px (SVG ``height`` attribute).
         auto_select: If True, overlay the striped selection bands (same
             visual as the old ``--select`` CSS repeating-linear-gradient).
+        monochrome: If True, render every glyph in ``font_color`` as a
+            single ``<text fill="...">`` per row instead of per-run
+            ``<tspan fill="rgb(...)">`` elements.
+        font_color: CSS color used for glyphs when ``monochrome`` is True.
 
     Returns:
         A complete SVG document as a string.
@@ -142,9 +148,16 @@ def ascii_grid_to_svg(
 
     text_els: list[str] = []
     for row_idx, row in enumerate(grid):
+        y = (row_idx + 1) * cell_h - baseline_offset
+        if monochrome:
+            text = "".join(ch for _, _, _, ch in row)
+            text_els.append(
+                f'<text x="0" y="{y}" xml:space="preserve" '
+                f'fill="{font_color}">{sx.escape(text)}</text>'
+            )
+            continue
         colors = [(r, g, b) for r, g, b, _ in row]
         runs = merge_runs(colors)
-        y = (row_idx + 1) * cell_h - baseline_offset
         tspans: list[str] = []
         for r, g, b, start, length in runs:
             text = "".join(ch for _, _, _, ch in row[start:start + length])

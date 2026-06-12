@@ -104,6 +104,39 @@ def test_ascii_grid_to_svg_text_and_tspan_runs():
     assert root.get("viewBox") == "0 0 18.0 8.0"
 
 
+def test_ascii_grid_to_svg_monochrome_uses_single_fill():
+    svg = imgsvg.ascii_grid_to_svg(
+        _ascii_grid(),
+        font_size=10,
+        bg_color="#000000",
+        px_w=18,
+        px_h=8,
+        monochrome=True,
+        font_color="#00ff00",
+    )
+    root = ET.fromstring(svg)
+
+    texts = root.findall(f"{SVG_NS}text")
+    assert len(texts) == 1
+    assert texts[0].get("fill") == "#00ff00"
+    assert texts[0].text == "abc"
+
+    tspans = texts[0].findall(f"{SVG_NS}tspan")
+    assert tspans == []
+    assert "rgb(" not in svg
+
+
+def test_ascii_grid_to_svg_default_uses_per_run_tspans():
+    svg = imgsvg.ascii_grid_to_svg(
+        _ascii_grid(), font_size=10, bg_color="#000000", px_w=18, px_h=8
+    )
+    root = ET.fromstring(svg)
+
+    texts = root.findall(f"{SVG_NS}text")
+    assert texts[0].get("fill") is None
+    assert "rgb(" in svg
+
+
 def test_ascii_grid_to_svg_auto_select_adds_overlay_rects():
     without = ET.fromstring(
         imgsvg.ascii_grid_to_svg(
