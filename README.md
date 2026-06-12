@@ -5,8 +5,25 @@ one shared image-prep core:
 
 | Style | Subcommand | Output | Best viewed in |
 |-------|------------|--------|----------------|
-| Colored **ASCII** — luminance picks a glyph (`$@B%8&…`), each character keeps its own RGB color | `ascii` | HTML or PNG | Browser / image viewer |
+| Colored **ASCII** — luminance picks a glyph (`$@B%8&…`), each character keeps its own RGB color | `ascii` | PNG or HTML | Image viewer / browser |
 | Traditional **ANSI** — half-block `▀` (top pixel = foreground, bottom = background) | `ansi` | `.ans` + optional PNG | Terminal (`cat`) / image viewer |
+
+## Features
+
+- **Auto-enhancement** — contrast, brightness, saturation, and a shadow-lift
+  floor are derived from the source image's own histogram/stats by default,
+  so dark, flat, or washed-out photos render closer to "as shot" with zero
+  flags. Override any of them individually, or pass `--no-auto` to fall back
+  to fixed historical defaults.
+- **PNG output via SVG + cairosvg** — both `ascii` (PNG) and `ansi --png`
+  build a small SVG (text/tspans for ascii, rect half-blocks for ansi) and
+  rasterize it with `cairosvg`. No browser/Chromium dependency.
+- **Three ANSI color modes** — `truecolor` (24-bit), `256` (xterm-256), and
+  `bbs16` (classic 16-color CP437/VGA).
+- **Auto-highlight overlay** (`--select`, ascii only) — draws a striped band
+  overlay over the art, similar to a text-selection highlight.
+- **Standalone HTML output** (`--html`, ascii only) — a self-contained
+  zoomable `<pre>` page, no PNG rasterization involved.
 
 ---
 
@@ -16,13 +33,13 @@ one shared image-prep core:
 
 <img width="720" height="600" alt="jackinarmorv4_ansi" src="https://github.com/user-attachments/assets/ec40891d-618f-470a-a5d1-267316e7c59d" />
 
-
-
 ## Requirements
 
 - Python 3.14+
 - [Pillow](https://pypi.org/project/Pillow/) — image loading/processing
-- [html2image](https://pypi.org/project/html2image/) — required for PNG output (needs Chrome/Chromium)
+- [cairosvg](https://pypi.org/project/CairoSVG/) — SVG-to-PNG rasterization
+  for PNG output (requires the native `libcairo` library; installed
+  automatically with cairosvg on most platforms)
 - pytest — only for the test suite
 
 ### Install system-wide with pipx (recommended)
@@ -33,13 +50,13 @@ one shared image-prep core:
 
 Puts `img2` on PATH (`~/.local/bin`) in its own isolated venv — no manual venv
 activation ever needed. Installs pipx via brew (or `pip install --user`) if missing.
+Dependencies (Pillow, cairosvg) are pulled from `pyproject.toml` automatically.
 
 ### Install in a venv
 
 ```bash
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
 pip install -e .          # exposes the `img2` command on PATH
 ```
 
@@ -64,46 +81,58 @@ rejected with a clear error (exit 2).
 | `input` | — | Path to the source image (positional) |
 | `-o, --output` | per style (below) | Output path. Extension respected if given |
 | `-w, --width` | `350` (ascii) / `80` (ansi) | Character columns |
-| `-c, --contrast` | `1.5` | Contrast multiplier |
-| `-s, --sharpness` | `2.5` | Sharpness multiplier |
-| `-B, --brightness` | `1.0` | Brightness multiplier |
-| `--saturate` | `1.0` | Saturation multiplier |
-| `--min-lum` | `0.0` | Minimum HLS luminance floor (0.0–1.0) |
-| `--no-gpu` | off | Disable GPU in html2image (PNG only) |
+| `-c, --contrast` | auto-detected | Contrast multiplier |
+| `-s, --sharpness` | `2.5` | Sharpness multiplier (never auto-detected) |
+| `-B, --brightness` | auto-detected | Brightness multiplier |
+| `--saturate` | auto-detected | Saturation multiplier |
+| `--min-lum` | auto-detected | Minimum HLS luminance floor (0.0–1.0) |
+| `--no-auto` | off | Disable auto-detection; use fixed defaults (`contrast 1.5`, `brightness 1.0`, `saturate 1.0`, `min-lum 0.0`) for any of the above not explicitly given. Does not affect `--sharpness`. |
+| `--no-gpu` | off | Deprecated, ignored (no-op; PNG output no longer uses a GPU-backed renderer) |
 | `-h, --help` | — | Show help |
+
+Auto-detection (`compute_auto_params`) inspects the source image's mean/stddev
+luminance, shadow percentile, and mean saturation, and picks
+contrast/brightness/saturate/min-lum that push it toward a "typical photo"
+look. Any of `-c`, `-B`, `--saturate`, `--min-lum` you pass explicitly
+overrides only that value.
 
 ### ascii-only options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--html` | off (PNG) | Save HTML instead of a PNG |
-| `--img-width` | auto | Force output PNG pixel width |
-| `--img-height` | auto | Force output PNG pixel height |
+| `--img-width` | source image width | Output PNG pixel width (cairosvg scales the rendered grid to this size) |
+| `--img-height` | source image height | Output PNG pixel height |
 | `-b, --bg` | `#000000` | Background color |
-| `--font-size` | `4.0` (HTML) / `6.5` (PNG) | Font size in px |
-| `--select` | off | Auto-highlight the text |
+| `--font-size` | `4.0` (HTML) / `13` (PNG) | Font size in px |
+| `--select` | off | Overlay a striped auto-highlight band pattern |
 
 Default output: `<input>_ascii.png` (or `<input>_ascii.html` with `--html`).
+If neither `--img-width` nor `--img-height` is given, the PNG is rendered at
+the source image's pixel dimensions.
 
 ### ansi-only options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--mode` | `truecolor` | `truecolor` \| `256` \| `bbs16` |
-| `--png` | off | Also rasterize a PNG |
+| `--png` | off | Also rasterize a PNG (always truecolor, regardless of `--mode`) |
 
 Default output: `<input>_ansi.ans` (plus `<input>_ansi.png` with `--png`).
 
 Color modes: **truecolor** = 24-bit (needs a truecolor terminal); **256** =
 xterm-256 palette; **bbs16** = classic 16-color CP437/VGA (most retro, works
-almost everywhere).
+almost everywhere). The `--png` preview is always rendered truecolor as
+stacked `<rect>` half-blocks; the `.ans` file carries the quantized color for
+whichever `--mode` was chosen.
 
 ---
 
 ## Examples
 
 ```bash
-# Colored ASCII -> high-detail PNG next to the source
+# Colored ASCII -> high-detail PNG next to the source, auto-enhanced,
+# rendered at the source image's resolution
 img2 ascii enterprise.jpg
 #   -> enterprise_ascii.png
 
@@ -111,18 +140,32 @@ img2 ascii enterprise.jpg
 img2 ascii planet.jpg --html
 #   -> planet_ascii.html
 
-# Force a 1920px-wide PNG on dark-grey
-img2 ascii planet.jpg --img-width 1920 -b "#101010"
+# Force a 1920px-wide PNG on dark-grey, with the striped highlight overlay
+img2 ascii planet.jpg --img-width 1920 -b "#101010" --select
+
+# Wider grid, bigger glyphs, fixed (non-auto) enhancement
+img2 ascii enterprise.jpg -w 500 --font-size 16 --no-auto
+
+# Override just the contrast, leave brightness/saturation/min-lum auto
+img2 ascii enterprise.jpg -c 1.8
+
+# Lift shadows manually on a very dark photo
+img2 ascii nightshot.jpg --min-lum 0.2
 
 # Traditional ANSI, 80-col truecolor .ans
 img2 ansi enterprise.jpg
 cat enterprise_ansi.ans
 
-# Retro 16-color, wider, also a PNG
+# Retro 16-color, wider, also a PNG preview
 img2 ansi planet.jpg -w 100 --mode bbs16 --png
+#   -> planet_ansi.ans, planet_ansi.png
 
-# 256-color, lift the dark areas
-img2 ansi planet.jpg --mode 256 --min-lum 0.15
+# 256-color .ans, fixed enhancement defaults
+img2 ansi planet.jpg --mode 256 --no-auto
+
+# Custom output path with explicit extension
+img2 ansi enterprise.jpg -o renders/enterprise.ans --png
+#   -> renders/enterprise.ans, renders/enterprise.png
 ```
 
 ---
@@ -130,9 +173,12 @@ img2 ansi planet.jpg --mode 256 --min-lum 0.15
 ## Project layout
 
 ```
-imgcommon.py   Shared helpers: lift_luminance, load_and_enhance, resize_for, write_png_from_html
-img2ascii.py   Colored-ASCII render backend
-img2ansi.py    Traditional-ANSI render backend
+imgcommon.py   Shared helpers: lift_luminance, load_and_enhance, resize_for,
+               compute_auto_params, build_ascii_grid, build_halfblock_grid
+imgsvg.py      Builds SVG art from pixel grids (ascii text/tspans, ansi
+               half-block rects) and rasterizes it to PNG via cairosvg
+img2ascii.py   Colored-ASCII HTML render backend
+img2ansi.py    Traditional-ANSI .ans render backend
 image2.py      Unified CLI (argument parsing, dispatch, output)
 tests/         pytest suite
 ```
@@ -141,29 +187,41 @@ tests/         pytest suite
 
 ## PNG output notes
 
-- PNG output uses `html2image` (drives headless Chrome/Chromium). If Chrome
-  isn't found or crashes, add `--no-gpu`.
-- Output is moved with `shutil.move`, so writing across filesystems works.
+- PNG output is built as an SVG (`imgsvg.ascii_grid_to_svg` /
+  `imgsvg.ansi_grid_to_svg`) and rasterized with `cairosvg.svg2png`, writing
+  directly to the requested output path on any filesystem.
+- `--no-gpu` is accepted for backward compatibility with old scripts but is a
+  no-op — cairosvg has no GPU-accelerated path.
+- `ansi --png` always renders truecolor `<rect>` half-blocks regardless of
+  `--mode`; the `.ans` text file carries the mode-quantized color.
 
 ---
 
 ## Running the tests
 
 ```bash
-./venv/bin/python -m pytest tests/ -v
+venv/bin/pytest
 ```
 
 ---
 
 ## How it works (short version)
 
-1. `imgcommon.load_and_enhance` opens the image and applies brightness →
-   contrast → saturation → sharpness (ANSI path; the ASCII renderer applies the
-   same chain internally).
-2. The image is resized to the character grid (`cell_aspect` differs per style:
-   `0.48` line-spacing for ASCII, `1.0` for ANSI half-blocks which sample 2 rows
-   per cell).
-3. `imgcommon.lift_luminance` optionally raises dark pixels to a floor
-   (`--min-lum`).
-4. Each backend renders: ASCII → colored `<span>`s; ANSI → half-block glyphs
-   with SGR escape codes (and HTML spans for the PNG preview).
+1. `imgcommon.resolve_enhance_params` fills in any unset
+   contrast/brightness/saturate/min-lum from `compute_auto_params` (source
+   image stats), unless `--no-auto` is given.
+2. `imgcommon.load_and_enhance` applies brightness → contrast → saturation →
+   sharpness.
+3. The image is mapped to a per-cell grid: `imgcommon.build_ascii_grid`
+   (cell aspect `0.75`, each cell -> `(r, g, b, glyph)`) for `ascii`, or
+   `imgcommon.build_halfblock_grid` (cell aspect `1.0`, each cell ->
+   `(top_rgb, bottom_rgb)`, sampling 2 source rows per cell) for `ansi`.
+4. `imgcommon.lift_luminance` raises pixels below `--min-lum` to that floor.
+5. Output:
+   - `ascii --html`: `img2ascii.image_to_ascii_html` emits colored `<span>`
+     runs in a `<pre>`.
+   - `ascii` (PNG) / `ansi --png`: `imgsvg.ascii_grid_to_svg` /
+     `imgsvg.ansi_grid_to_svg` build an SVG, then `imgsvg.render_svg_to_png`
+     rasterizes it with cairosvg.
+   - `ansi` (`.ans`): `img2ansi.image_to_ansi` emits half-block glyphs with
+     SGR escape codes, quantized per `--mode`.

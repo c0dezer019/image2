@@ -19,8 +19,8 @@ Shared options:
                       min-lum 0.0) for any of the above not given.
                       Sharpness is never auto-detected and is
                       unaffected by this flag.
-    --no-gpu          Disable GPU in html2image (PNG only)
-    --invert          Invert source image colors before rendering
+    --no-gpu          Deprecated, ignored (no-op; PNG output no longer
+                      uses a GPU-backed renderer)
     -h, --help        Show help
 
 ascii-only:
@@ -28,11 +28,8 @@ ascii-only:
     --img-width       Force output PNG pixel width
     --img-height      Force output PNG pixel height
     -b, --bg          Background color (default: #000000)
-    --font-size       Font size px (default: 4.0 HTML / 6.5 PNG)
+    --font-size       Font size px (default: 4.0 HTML / 13 PNG)
     --select          Auto-highlight the text
-    --monochrome      Render all glyphs in a single solid color
-    --font-color      Solid font color (implies --monochrome,
-                      default #ffffff)
 
 ansi-only:
     --mode            truecolor (default) | 256 | bbs16
@@ -50,7 +47,7 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 try:
-    from PIL import Image, ImageOps
+    from PIL import Image
 except ImportError:
     print("Error: Pillow is required. Install it with: pip install Pillow")
     sys.exit(1)
@@ -58,12 +55,14 @@ except ImportError:
 import img2ansi
 import img2ascii
 from imgcommon import (
+    build_ascii_grid,
+    build_halfblock_grid,
     compute_auto_params,
     load_and_enhance,
     resize_for,
     lift_luminance,
-    write_png_from_html,
 )
+from imgsvg import ascii_grid_to_svg, ansi_grid_to_svg, render_svg_to_png
 
 
 def _shared_parser() -> argparse.ArgumentParser:
@@ -79,7 +78,6 @@ def _shared_parser() -> argparse.ArgumentParser:
     p.add_argument("--min-lum", type=float, default=None)
     p.add_argument("--no-auto", action="store_true", default=False)
     p.add_argument("--no-gpu", action="store_true", default=False)
-    p.add_argument("--invert", action="store_true", default=False)
     return p
 
 
@@ -106,8 +104,6 @@ def build_parser() -> argparse.ArgumentParser:
     ascii_p.add_argument("-b", "--bg", default=None)
     ascii_p.add_argument("--font-size", type=float, default=None)
     ascii_p.add_argument("--select", action="store_true", default=False)
-    ascii_p.add_argument("--monochrome", action="store_true", default=False)
-    ascii_p.add_argument("--font-color", default=None)
 
     ansi_p = sub.add_parser(
         "ansi",
@@ -225,12 +221,13 @@ def _render_ansi(args, width: int, img: Image.Image) -> None:
         char_width_px = font_size * 0.6
         cols = img.width
         rows = img.height // 2
-        html = img2ansi.ansi_image_to_html(
-            img, bg_color="#000000", font_size=font_size
-        )
+        grid = build_halfblock_grid(img)
         px_w = round(cols * char_width_px)
         px_h = round(rows * font_size)
-        write_png_from_html(html, png_path, px_w, px_h, args.no_gpu)
+        svg = ansi_grid_to_svg(
+            grid, char_width_px, font_size, px_w, px_h, "#000000"
+        )
+        render_svg_to_png(svg, png_path)
 
 
 def _render_ascii(args, width: int, img: Image.Image) -> None:
@@ -240,8 +237,6 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
         if args.font_size is not None
         else (4.0 if args.html else 13)
     )
-    monochrome = args.monochrome or args.font_color is not None
-    font_color = args.font_color or "#ffffff"
 
     ext = ".html" if args.html else ".png"
     if args.output:
@@ -267,40 +262,48 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
     if args.width is None:
         width = max(1, int((px_w - 2) / char_width_px))
 
-    # Canvas must fit the rendered ascii grid exactly (mirrors the
-    # row/col math in img2ascii.image_to_ascii_html), else the centered
-    # <pre> gets clipped top/bottom by overflow:hidden.
-    aspect = img.height / img.width
-    ascii_rows = max(1, int(width * aspect * 0.75))
-    px_w = round(width * char_width_px)
-    px_h = round(ascii_rows * (font_size * 0.8))
-
-    print("Generating HTML...")
-    html = img2ascii.image_to_ascii_html(
-        img,
-        width,
-        args.contrast,
-        args.sharpness,
-        args.brightness,
-        args.min_lum,
-        args.saturate,
-        bg,
-        font_size,
-        args.select,
-        1.0,
-        px_w,
-        px_h,
-        monochrome,
-        font_color,
-    )
-
     if args.html:
+        # Canvas must fit the rendered ascii grid exactly (mirrors the
+        # row/col math in img2ascii.image_to_ascii_html), else the centered
+        # <pre> gets clipped top/bottom by overflow:hidden.
+        aspect = img.height / img.width
+        ascii_rows = max(1, int(width * aspect * 0.75))
+        px_w = round(width * char_width_px)
+        px_h = round(ascii_rows * (font_size * 0.8))
+
+        print("Generating HTML...")
+        html = img2ascii.image_to_ascii_html(
+            img,
+            width,
+            args.contrast,
+            args.sharpness,
+            args.brightness,
+            args.min_lum,
+            args.saturate,
+            bg,
+            font_size,
+            args.select,
+            1.0,
+            px_w,
+            px_h,
+        )
         html_path = os.path.splitext(output_path)[0] + ".html"
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html)
         print(f"HTML locked in at: {html_path}")
     else:
-        write_png_from_html(html, output_path, px_w, px_h, args.no_gpu)
+        print("Generating the ASCII grid...")
+        grid = build_ascii_grid(
+            img,
+            width,
+            args.contrast,
+            args.sharpness,
+            args.brightness,
+            args.min_lum,
+            args.saturate,
+        )
+        svg = ascii_grid_to_svg(grid, font_size, bg, px_w, px_h, args.select)
+        render_svg_to_png(svg, output_path)
 
 
 def main():
@@ -314,8 +317,6 @@ def main():
     width = resolve_width(args.style, args.width)
     with Image.open(args.input) as opened:
         img = opened.convert("RGB")
-    if args.invert:
-        img = ImageOps.invert(img)
 
     args.contrast, args.brightness, args.saturate, args.min_lum = (
         resolve_enhance_params(

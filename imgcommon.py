@@ -3,14 +3,14 @@
 """imgcommon.py — shared image-prep helpers for img2ascii / img2ansi."""
 
 import colorsys
-import os
-import shutil
 
-try:
-    from html2image import Html2Image  # type: ignore[import-untyped]
-except ImportError:  # pragma: no cover
-    Html2Image = None  # type: ignore[assignment]
 from PIL import Image, ImageEnhance, ImageStat
+
+# Reversed so index 0 = darkest. Brightness maps to lum/255 * (len-1).
+ascii_chars = (
+    "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+)
+ascii_chars = ascii_chars[::-1]
 
 
 def lift_luminance(
@@ -56,45 +56,93 @@ def resize_for(
     ).convert("RGB")
 
 
-def write_png_from_html(
-    html: str,
-    out_path: str,
-    px_w: int,
-    px_h: int,
-    no_gpu: bool,
-) -> None:
-    """Rasterize HTML to a PNG via headless Chrome (html2image).
+def build_ascii_grid(
+    img: Image.Image,
+    width: int,
+    contrast: float,
+    sharpness: float,
+    brightness: float,
+    min_lum: float,
+    saturate: float,
+) -> list[list[tuple[int, int, int, str]]]:
+    """Enhance, resize, and map an image to a per-pixel ascii grid.
 
-    Uses shutil.move so output across filesystems works.
+    Shared by ``img2ascii.image_to_ascii_html`` (--html output) and the
+    SVG/PNG path (``imgsvg.ascii_grid_to_svg``). Resize uses
+    ``cell_aspect=0.75`` (truncating, matching the historical ascii-grid
+    math) rather than ``resize_for``'s rounding, to keep --html output
+    byte-identical.
+
+    Args:
+        img: Source image, any mode.
+        width: Target grid width in columns.
+        contrast: Contrast multiplier.
+        sharpness: Sharpness multiplier.
+        brightness: Brightness multiplier.
+        min_lum: Minimum HLS luminance floor (0.0-1.0), see lift_luminance.
+        saturate: Saturation multiplier.
+
+    Returns:
+        Rows of ``(r, g, b, ascii_char)``, one entry per output pixel.
     """
-    flags = [
-        "--hide-scrollbars",
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-background-networking",
-        "--log-level=3",
-    ]
-    if no_gpu:
-        flags += [
-            "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--disable-dev-shm-usage",
-        ]
-    if Html2Image is None:
-        print(
-            "html2image is required to save a PNG. Run: pip install html2image"
-        )
-        return
-    hti = Html2Image(custom_flags=flags, disable_logging=True)
-    print(f"Snapping the PNG to {out_path}...")
-    hti.screenshot(
-        html_str=html,
-        save_as=os.path.basename(out_path),
-        size=(px_w, px_h),
-    )
-    if os.path.dirname(out_path):
-        shutil.move(os.path.basename(out_path), out_path)
-    print("Image generated, stay frosty.")
+    img = load_and_enhance(img, contrast, sharpness, brightness, saturate)
+
+    aspect = img.height / img.width
+    height = max(1, int(width * aspect * 0.75))
+    img = img.resize(
+        (width, height), resample=Image.Resampling.LANCZOS
+    ).convert("RGB")
+
+    rows: list[list[tuple[int, int, int, str]]] = []
+    for y in range(height):
+        row: list[tuple[int, int, int, str]] = []
+        for x in range(width):
+            pixel = img.getpixel((x, y))
+            if isinstance(pixel, tuple):
+                r, g, b = int(pixel[0]), int(pixel[1]), int(pixel[2])
+            else:
+                p = int(pixel) if pixel is not None else 0
+                r, g, b = p, p, p
+            r, g, b = lift_luminance(r, g, b, min_lum)
+            lum = int(0.299 * r + 0.587 * g + 0.114 * b)
+            char_idx = int(lum / 255 * (len(ascii_chars) - 1))
+            row.append((r, g, b, ascii_chars[char_idx]))
+        rows.append(row)
+    return rows
+
+
+def build_halfblock_grid(
+    img: Image.Image,
+) -> list[list[tuple[tuple[int, int, int], tuple[int, int, int]]]]:
+    """Sample an image into per-cell (top, bottom) half-block pixel pairs.
+
+    Each output cell corresponds to two source rows: the top pixel becomes
+    the foreground/upper-half color, the bottom pixel the background/
+    lower-half color (the ``▀`` half-block convention). Shared by
+    ``img2ansi.image_to_ansi`` (.ans text, quantized per-mode from this
+    grid) and the SVG/PNG path (``imgsvg.ansi_grid_to_svg``, always
+    truecolor).
+
+    Args:
+        img: Source image, any mode (converted to RGB).
+
+    Returns:
+        Rows of ``((top_r, top_g, top_b), (bot_r, bot_g, bot_b))``. A
+        trailing odd source row is dropped.
+    """
+    img = img.convert("RGB")
+    w, h = img.size
+    rows = h // 2
+    grid: list[list[tuple[tuple[int, int, int], tuple[int, int, int]]]] = []
+    for cy in range(rows):
+        y = cy * 2
+        row: list[tuple[tuple[int, int, int], tuple[int, int, int]]] = []
+        for x in range(w):
+            top = img.getpixel((x, y))
+            bot = img.getpixel((x, y + 1))
+            row.append((top, bot))
+        grid.append(row)
+    return grid
 
 
 # Calibration constants for compute_auto_params. Tunable — these target a
