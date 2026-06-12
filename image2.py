@@ -22,6 +22,8 @@ Shared options:
     --no-gpu          Deprecated, ignored (no-op; PNG output no longer
                       uses a GPU-backed renderer)
     --invert          Invert source image colors before rendering
+    --blur            Gaussian blur radius applied before processing
+                      (default: 0.0, disabled)
     -h, --help        Show help
 
 ascii-only:
@@ -83,6 +85,7 @@ def _shared_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-auto", action="store_true", default=False)
     p.add_argument("--no-gpu", action="store_true", default=False)
     p.add_argument("--invert", action="store_true", default=False)
+    p.add_argument("--blur", type=float, default=0.0)
     return p
 
 

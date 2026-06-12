@@ -172,6 +172,20 @@ def test_invert_flag_defaults_false():
     assert args.invert is False
 
 
+def test_blur_flag_defaults_zero():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg"])
+    assert args.blur == 0.0
+
+
+def test_blur_flag_available_for_both_styles():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg", "--blur", "1.5"])
+    assert args.blur == 1.5
+    args = p.parse_args(["ansi", "in.jpg", "--blur", "1.5"])
+    assert args.blur == 1.5
+
+
 def test_ansi_invert_changes_output(tmp_path, monkeypatch):
     src = _tiny_image(tmp_path)
     out_normal = str(tmp_path / "normal.ans")
