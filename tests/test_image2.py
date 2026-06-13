@@ -92,6 +92,13 @@ def _tiny_image(tmp_path):
     return str(path)
 
 
+def _large_image(tmp_path):
+    path = tmp_path / "large.png"
+    img = Image.new("RGB", (600, 400), (200, 100, 50))
+    img.save(path)
+    return str(path)
+
+
 def _noisy_image(tmp_path):
     import random
 
@@ -463,6 +470,39 @@ def test_min_flag_does_not_raise_explicit_small_width(tmp_path, monkeypatch):
     image2.main()
 
     assert captured["width"] == 50
+
+
+def test_min_flag_auto_width_never_exceeds_dense(tmp_path, monkeypatch):
+    src = _large_image(tmp_path)
+
+    def _auto_width(extra_args, out_name):
+        out = str(tmp_path / out_name)
+        captured = {}
+
+        def fake_build_ascii_grid(img, width, *args, **kwargs):
+            captured["width"] = width
+            return [["#" for _ in range(1)]]
+
+        monkeypatch.setattr(
+            image2, "build_ascii_grid", fake_build_ascii_grid
+        )
+        monkeypatch.setattr(
+            image2, "ascii_grid_to_svg", lambda *a, **k: "<svg></svg>"
+        )
+        monkeypatch.setattr(
+            image2, "render_svg_to_png", lambda svg, path: None
+        )
+        monkeypatch.setattr(
+            sys, "argv", ["img2", "ascii", src, "-o", out] + extra_args
+        )
+        image2.main()
+        return captured["width"]
+
+    dense_width = _auto_width([], "dense.png")
+    min_width = _auto_width(["--min"], "min.png")
+
+    assert dense_width < 100
+    assert min_width <= dense_width
 
 
 def test_min_flag_clamps_explicit_large_width(tmp_path, monkeypatch):
