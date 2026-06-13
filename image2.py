@@ -36,6 +36,9 @@ ascii-only:
     --monochrome      Render all glyphs in a single solid color
     --font-color      Solid font color (implies --monochrome,
                       default #ffffff)
+    --min             Cap width to 100 and font-size to 8 (PNG) /
+                      2.0 (HTML) for a quick, low-detail render
+                      (default: off, "dense" mode)
 
 ansi-only:
     --mode            truecolor (default) | 256 | bbs16
@@ -114,6 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
     ascii_p.add_argument("--select", action="store_true", default=False)
     ascii_p.add_argument("--monochrome", action="store_true", default=False)
     ascii_p.add_argument("--font-color", default=None)
+    ascii_p.add_argument("--min", action="store_true", default=False)
 
     ansi_p = sub.add_parser(
         "ansi",

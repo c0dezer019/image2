@@ -48,6 +48,23 @@ def test_ansi_flag_rejected_under_ascii():
         image2.build_parser().parse_args(["ascii", "in.jpg", "--mode", "256"])
 
 
+def test_min_flag_available_under_ascii():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg", "--min"])
+    assert args.min is True
+
+
+def test_min_flag_defaults_false():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg"])
+    assert args.min is False
+
+
+def test_min_flag_rejected_under_ansi():
+    with pytest.raises(SystemExit):
+        image2.build_parser().parse_args(["ansi", "in.jpg", "--min"])
+
+
 def test_ascii_flag_rejected_under_ansi():
     with pytest.raises(SystemExit):
         image2.build_parser().parse_args(["ansi", "in.jpg", "--html"])
