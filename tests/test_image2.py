@@ -463,3 +463,26 @@ def test_min_flag_does_not_raise_explicit_small_width(tmp_path, monkeypatch):
     image2.main()
 
     assert captured["width"] == 50
+
+
+def test_min_flag_clamps_explicit_large_width(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.png")
+
+    captured = {}
+
+    def fake_build_ascii_grid(img, width, *args, **kwargs):
+        captured["width"] = width
+        return [["#" for _ in range(1)]]
+
+    monkeypatch.setattr(image2, "build_ascii_grid", fake_build_ascii_grid)
+    monkeypatch.setattr(
+        image2, "ascii_grid_to_svg", lambda *a, **k: "<svg></svg>"
+    )
+    monkeypatch.setattr(image2, "render_svg_to_png", lambda svg, path: None)
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--min", "-w", "200", "-o", out]
+    )
+    image2.main()
+
+    assert captured["width"] == 100
