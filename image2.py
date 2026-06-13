@@ -256,6 +256,9 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
         if args.font_size is not None
         else (4.0 if args.html else 13)
     )
+    font_size = apply_min_cap(
+        font_size, 2.0 if args.html else 8, args.min
+    )
     monochrome = args.monochrome or args.font_color is not None
     font_color = args.font_color or "#ffffff"
 
@@ -282,6 +285,7 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
 
     if args.width is None:
         width = max(1, int((px_w - 2) / char_width_px))
+    width = apply_min_cap(width, 100, args.min)
 
     if args.html:
         # Canvas must fit the rendered ascii grid exactly (mirrors the

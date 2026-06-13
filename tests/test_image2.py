@@ -391,3 +391,75 @@ def test_ascii_no_monochrome_uses_per_pixel_color(tmp_path, monkeypatch):
     image2.main()
     html = open(out, encoding="utf-8").read()
     assert "rgb(" in html
+
+
+def test_min_flag_caps_width_and_font_size_html(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.html")
+
+    captured = {}
+
+    def fake_image_to_ascii_html(img, width, *args, **kwargs):
+        captured["width"] = width
+        captured["font_size"] = args[6]
+        return "<pre></pre>"
+
+    monkeypatch.setattr(
+        image2.img2ascii, "image_to_ascii_html", fake_image_to_ascii_html
+    )
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--html", "--min", "-o", out]
+    )
+    image2.main()
+
+    assert captured["width"] <= 100
+    assert captured["font_size"] == 2.0
+
+
+def test_min_flag_caps_width_png(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.png")
+
+    captured = {}
+
+    def fake_build_ascii_grid(img, width, *args, **kwargs):
+        captured["width"] = width
+        return [["#" for _ in range(1)]]
+
+    def fake_ascii_grid_to_svg(grid, font_size, *args, **kwargs):
+        captured["font_size"] = font_size
+        return "<svg></svg>"
+
+    monkeypatch.setattr(image2, "build_ascii_grid", fake_build_ascii_grid)
+    monkeypatch.setattr(image2, "ascii_grid_to_svg", fake_ascii_grid_to_svg)
+    monkeypatch.setattr(image2, "render_svg_to_png", lambda svg, path: None)
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--min", "-o", out]
+    )
+    image2.main()
+
+    assert captured["width"] <= 100
+    assert captured["font_size"] <= 8
+
+
+def test_min_flag_does_not_raise_explicit_small_width(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.png")
+
+    captured = {}
+
+    def fake_build_ascii_grid(img, width, *args, **kwargs):
+        captured["width"] = width
+        return [["#" for _ in range(1)]]
+
+    monkeypatch.setattr(image2, "build_ascii_grid", fake_build_ascii_grid)
+    monkeypatch.setattr(
+        image2, "ascii_grid_to_svg", lambda *a, **k: "<svg></svg>"
+    )
+    monkeypatch.setattr(image2, "render_svg_to_png", lambda svg, path: None)
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--min", "-w", "50", "-o", out]
+    )
+    image2.main()
+
+    assert captured["width"] == 50
