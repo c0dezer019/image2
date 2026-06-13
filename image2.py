@@ -36,6 +36,9 @@ ascii-only:
     --monochrome      Render all glyphs in a single solid color
     --font-color      Solid font color (implies --monochrome,
                       default #ffffff)
+    --min             Cap width to 100 and font-size to 8 (PNG) /
+                      2.0 (HTML) for a quick, low-detail render
+                      (default: off, "dense" mode)
 
 ansi-only:
     --mode            truecolor (default) | 256 | bbs16
@@ -114,6 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
     ascii_p.add_argument("--select", action="store_true", default=False)
     ascii_p.add_argument("--monochrome", action="store_true", default=False)
     ascii_p.add_argument("--font-color", default=None)
+    ascii_p.add_argument("--min", action="store_true", default=False)
 
     ansi_p = sub.add_parser(
         "ansi",
@@ -134,6 +138,11 @@ def resolve_width(style: str, width: int | None) -> int:
     if width is not None:
         return width
     return 350 if style == "ascii" else 80
+
+
+def apply_min_cap(value, cap, enabled):
+    """Clamp value to cap (only lowers, never raises) when enabled."""
+    return min(value, cap) if enabled else value
 
 
 # Old fixed defaults, used when --no-auto is passed.
@@ -273,6 +282,12 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
 
     if args.width is None:
         width = max(1, int((px_w - 2) / char_width_px))
+    width = apply_min_cap(width, 100, args.min)
+
+    font_size = apply_min_cap(
+        font_size, 2.0 if args.html else 8, args.min
+    )
+    char_width_px = font_size * 0.6
 
     if args.html:
         # Canvas must fit the rendered ascii grid exactly (mirrors the

@@ -30,6 +30,21 @@ def test_width_resolves_per_style():
     assert image2.resolve_width("ansi", 120) == 120
 
 
+def test_apply_min_cap_disabled_passes_through():
+    assert image2.apply_min_cap(350, 100, False) == 350
+    assert image2.apply_min_cap(13, 8, False) == 13
+
+
+def test_apply_min_cap_clamps_when_enabled():
+    assert image2.apply_min_cap(350, 100, True) == 100
+    assert image2.apply_min_cap(13, 8, True) == 8
+
+
+def test_apply_min_cap_does_not_raise_below_cap():
+    assert image2.apply_min_cap(50, 100, True) == 50
+    assert image2.apply_min_cap(2.0, 8, True) == 2.0
+
+
 def test_ascii_only_flags_available_under_ascii():
     p = image2.build_parser()
     args = p.parse_args(["ascii", "in.jpg", "--html", "--font-size", "5"])
@@ -48,6 +63,23 @@ def test_ansi_flag_rejected_under_ascii():
         image2.build_parser().parse_args(["ascii", "in.jpg", "--mode", "256"])
 
 
+def test_min_flag_available_under_ascii():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg", "--min"])
+    assert args.min is True
+
+
+def test_min_flag_defaults_false():
+    p = image2.build_parser()
+    args = p.parse_args(["ascii", "in.jpg"])
+    assert args.min is False
+
+
+def test_min_flag_rejected_under_ansi():
+    with pytest.raises(SystemExit):
+        image2.build_parser().parse_args(["ansi", "in.jpg", "--min"])
+
+
 def test_ascii_flag_rejected_under_ansi():
     with pytest.raises(SystemExit):
         image2.build_parser().parse_args(["ansi", "in.jpg", "--html"])
@@ -56,6 +88,13 @@ def test_ascii_flag_rejected_under_ansi():
 def _tiny_image(tmp_path):
     path = tmp_path / "tiny.png"
     img = Image.new("RGB", (4, 4), (200, 100, 50))
+    img.save(path)
+    return str(path)
+
+
+def _large_image(tmp_path):
+    path = tmp_path / "large.png"
+    img = Image.new("RGB", (600, 400), (200, 100, 50))
     img.save(path)
     return str(path)
 
@@ -359,3 +398,131 @@ def test_ascii_no_monochrome_uses_per_pixel_color(tmp_path, monkeypatch):
     image2.main()
     html = open(out, encoding="utf-8").read()
     assert "rgb(" in html
+
+
+def test_min_flag_caps_width_and_font_size_html(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.html")
+
+    captured = {}
+
+    def fake_image_to_ascii_html(img, width, *args, **kwargs):
+        captured["width"] = width
+        captured["font_size"] = args[6]
+        return "<pre></pre>"
+
+    monkeypatch.setattr(
+        image2.img2ascii, "image_to_ascii_html", fake_image_to_ascii_html
+    )
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--html", "--min", "-o", out]
+    )
+    image2.main()
+
+    assert captured["width"] <= 100
+    assert captured["font_size"] == 2.0
+
+
+def test_min_flag_caps_width_png(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.png")
+
+    captured = {}
+
+    def fake_build_ascii_grid(img, width, *args, **kwargs):
+        captured["width"] = width
+        return [["#" for _ in range(1)]]
+
+    def fake_ascii_grid_to_svg(grid, font_size, *args, **kwargs):
+        captured["font_size"] = font_size
+        return "<svg></svg>"
+
+    monkeypatch.setattr(image2, "build_ascii_grid", fake_build_ascii_grid)
+    monkeypatch.setattr(image2, "ascii_grid_to_svg", fake_ascii_grid_to_svg)
+    monkeypatch.setattr(image2, "render_svg_to_png", lambda svg, path: None)
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--min", "-o", out]
+    )
+    image2.main()
+
+    assert captured["width"] <= 100
+    assert captured["font_size"] <= 8
+
+
+def test_min_flag_does_not_raise_explicit_small_width(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.png")
+
+    captured = {}
+
+    def fake_build_ascii_grid(img, width, *args, **kwargs):
+        captured["width"] = width
+        return [["#" for _ in range(1)]]
+
+    monkeypatch.setattr(image2, "build_ascii_grid", fake_build_ascii_grid)
+    monkeypatch.setattr(
+        image2, "ascii_grid_to_svg", lambda *a, **k: "<svg></svg>"
+    )
+    monkeypatch.setattr(image2, "render_svg_to_png", lambda svg, path: None)
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--min", "-w", "50", "-o", out]
+    )
+    image2.main()
+
+    assert captured["width"] == 50
+
+
+def test_min_flag_auto_width_never_exceeds_dense(tmp_path, monkeypatch):
+    src = _large_image(tmp_path)
+
+    def _auto_width(extra_args, out_name):
+        out = str(tmp_path / out_name)
+        captured = {}
+
+        def fake_build_ascii_grid(img, width, *args, **kwargs):
+            captured["width"] = width
+            return [["#" for _ in range(1)]]
+
+        monkeypatch.setattr(
+            image2, "build_ascii_grid", fake_build_ascii_grid
+        )
+        monkeypatch.setattr(
+            image2, "ascii_grid_to_svg", lambda *a, **k: "<svg></svg>"
+        )
+        monkeypatch.setattr(
+            image2, "render_svg_to_png", lambda svg, path: None
+        )
+        monkeypatch.setattr(
+            sys, "argv", ["img2", "ascii", src, "-o", out] + extra_args
+        )
+        image2.main()
+        return captured["width"]
+
+    dense_width = _auto_width([], "dense.png")
+    min_width = _auto_width(["--min"], "min.png")
+
+    assert dense_width < 100
+    assert min_width <= dense_width
+
+
+def test_min_flag_clamps_explicit_large_width(tmp_path, monkeypatch):
+    src = _tiny_image(tmp_path)
+    out = str(tmp_path / "art.png")
+
+    captured = {}
+
+    def fake_build_ascii_grid(img, width, *args, **kwargs):
+        captured["width"] = width
+        return [["#" for _ in range(1)]]
+
+    monkeypatch.setattr(image2, "build_ascii_grid", fake_build_ascii_grid)
+    monkeypatch.setattr(
+        image2, "ascii_grid_to_svg", lambda *a, **k: "<svg></svg>"
+    )
+    monkeypatch.setattr(image2, "render_svg_to_png", lambda svg, path: None)
+    monkeypatch.setattr(
+        sys, "argv", ["img2", "ascii", src, "--min", "-w", "200", "-o", out]
+    )
+    image2.main()
+
+    assert captured["width"] == 100
