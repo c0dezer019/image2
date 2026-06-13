@@ -13,14 +13,12 @@ Shared options:
     -s, --sharpness   Sharpness multiplier (default: 2.5)
     -B, --brightness  Brightness multiplier (default: auto-detected)
     --saturate        Saturation multiplier (default: auto-detected)
-    --min-lum         Minimum HLS luminance 0.0-1.0 (default: auto-detected)
+    -ml, --min-lum    Minimum HLS luminance 0.0-1.0 (default: auto-detected)
     --no-auto         Disable auto-detection; use fixed defaults
                       (contrast 1.5, brightness 1.0, saturate 1.0,
                       min-lum 0.0) for any of the above not given.
                       Sharpness is never auto-detected and is
                       unaffected by this flag.
-    --no-gpu          Deprecated, ignored (no-op; PNG output no longer
-                      uses a GPU-backed renderer)
     --invert          Invert source image colors before rendering
     --blur            Gaussian blur radius applied before processing
                       (default: 0.0, disabled)
@@ -28,13 +26,13 @@ Shared options:
 
 ascii-only:
     --html            Save HTML instead of PNG
-    --img-width       Force output PNG pixel width
-    --img-height      Force output PNG pixel height
+    --img-width, -W   Force output PNG pixel width
+    --img-height, -H  Force output PNG pixel height
     -b, --bg          Background color (default: #000000)
-    --font-size       Font size px (default: 4.0 HTML / 13 PNG)
-    --select          Auto-highlight the text
-    --monochrome      Render all glyphs in a single solid color
-    --font-color      Solid font color (implies --monochrome,
+    --font-size, -f   Font size px (default: 4.0 HTML / 13 PNG)
+    --select, -s      Auto-highlight the text
+    --monochrome, -m  Render all glyphs in a single solid color
+    --font-color, -F  Solid font color (implies --monochrome,
                       default #ffffff)
     --min             Cap width to 100 and font-size to 8 (PNG) /
                       2.0 (HTML) for a quick, low-detail render
@@ -83,10 +81,9 @@ def _shared_parser() -> argparse.ArgumentParser:
     p.add_argument("-c", "--contrast", type=float, default=None)
     p.add_argument("-s", "--sharpness", type=float, default=2.5)
     p.add_argument("-B", "--brightness", type=float, default=None)
-    p.add_argument("--saturate", type=float, default=None)
-    p.add_argument("--min-lum", type=float, default=None)
+    p.add_argument("-S", "--saturate", type=float, default=None)
+    p.add_argument("-ml", "--min-lum", type=float, default=None)
     p.add_argument("--no-auto", action="store_true", default=False)
-    p.add_argument("--no-gpu", action="store_true", default=False)
     p.add_argument("--invert", action="store_true", default=False)
     p.add_argument("--blur", type=float, default=0.0)
     return p
@@ -110,13 +107,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Colored ASCII art (PNG or HTML output)",
     )
     ascii_p.add_argument("--html", action="store_true", default=False)
-    ascii_p.add_argument("--img-width", type=int, default=None)
-    ascii_p.add_argument("--img-height", type=int, default=None)
+    ascii_p.add_argument("-W", "--img-width", type=int, default=None)
+    ascii_p.add_argument("-H", "--img-height", type=int, default=None)
     ascii_p.add_argument("-b", "--bg", default=None)
-    ascii_p.add_argument("--font-size", type=float, default=None)
+    ascii_p.add_argument("-f", "--font-size", type=float, default=None)
     ascii_p.add_argument("--select", action="store_true", default=False)
-    ascii_p.add_argument("--monochrome", action="store_true", default=False)
-    ascii_p.add_argument("--font-color", default=None)
+    ascii_p.add_argument("-m", "--monochrome", action="store_true", default=False)
+    ascii_p.add_argument("-F", "--font-color", default=None)
     ascii_p.add_argument("--min", action="store_true", default=False)
 
     ansi_p = sub.add_parser(
