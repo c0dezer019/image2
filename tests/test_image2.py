@@ -30,6 +30,21 @@ def test_width_resolves_per_style():
     assert image2.resolve_width("ansi", 120) == 120
 
 
+def test_apply_min_cap_disabled_passes_through():
+    assert image2.apply_min_cap(350, 100, False) == 350
+    assert image2.apply_min_cap(13, 8, False) == 13
+
+
+def test_apply_min_cap_clamps_when_enabled():
+    assert image2.apply_min_cap(350, 100, True) == 100
+    assert image2.apply_min_cap(13, 8, True) == 8
+
+
+def test_apply_min_cap_does_not_raise_below_cap():
+    assert image2.apply_min_cap(50, 100, True) == 50
+    assert image2.apply_min_cap(2.0, 8, True) == 2.0
+
+
 def test_ascii_only_flags_available_under_ascii():
     p = image2.build_parser()
     args = p.parse_args(["ascii", "in.jpg", "--html", "--font-size", "5"])

@@ -140,6 +140,11 @@ def resolve_width(style: str, width: int | None) -> int:
     return 350 if style == "ascii" else 80
 
 
+def apply_min_cap(value, cap, enabled):
+    """Clamp value to cap (only lowers, never raises) when enabled."""
+    return min(value, cap) if enabled else value
+
+
 # Old fixed defaults, used when --no-auto is passed.
 _OLD_ENHANCE_DEFAULTS = {
     "contrast": 1.5,
