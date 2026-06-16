@@ -28,6 +28,11 @@ ascii-only:
     --html            Save HTML instead of PNG
     --img-width, -W   Force output PNG pixel width
     --img-height, -H  Force output PNG pixel height
+    --aspect-ratio,
+    -ar               Aspect ratio for PNG output ("16:9" or "1.778");
+                      derives the unset dimension from -W or -H (or from
+                      the source width if neither given). Conflicts with
+                      passing both -W and -H.
     -b, --bg          Background color (default: #000000)
     --font-size, -f   Font size px (default: 4.0 HTML / 13 PNG)
     --select, -s      Auto-highlight the text
@@ -72,6 +77,29 @@ from imgcommon import (
 from imgsvg import ascii_grid_to_svg, ansi_grid_to_svg, render_svg_to_png
 
 
+def parse_aspect_ratio(value: str) -> float:
+    """Parse "W:H" or a plain float into a width/height ratio."""
+    if ":" in value:
+        w, _, h = value.partition(":")
+        try:
+            w, h = float(w), float(h)
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                f"invalid aspect ratio: {value!r}"
+            )
+        if h == 0:
+            raise argparse.ArgumentTypeError(
+                f"invalid aspect ratio: {value!r}"
+            )
+        return w / h
+    try:
+        return float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid aspect ratio: {value!r}"
+        )
+
+
 def _shared_parser() -> argparse.ArgumentParser:
     """Parent parser carrying args common to both subcommands."""
     p = argparse.ArgumentParser(add_help=False)
@@ -109,6 +137,9 @@ def build_parser() -> argparse.ArgumentParser:
     ascii_p.add_argument("--html", action="store_true", default=False)
     ascii_p.add_argument("-W", "--img-width", type=int, default=None)
     ascii_p.add_argument("-H", "--img-height", type=int, default=None)
+    ascii_p.add_argument(
+        "-ar", "--aspect-ratio", type=parse_aspect_ratio, default=None
+    )
     ascii_p.add_argument("-b", "--bg", default=None)
     ascii_p.add_argument("-f", "--font-size", type=float, default=None)
     ascii_p.add_argument("--select", action="store_true", default=False)
@@ -265,7 +296,17 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
 
     char_width_px = font_size * 0.6
 
-    if args.img_width and args.img_height:
+    if args.aspect_ratio:
+        if args.img_width:
+            px_w = args.img_width
+            px_h = round(px_w / args.aspect_ratio)
+        elif args.img_height:
+            px_h = args.img_height
+            px_w = round(px_h * args.aspect_ratio)
+        else:
+            px_w = img.width
+            px_h = round(px_w / args.aspect_ratio)
+    elif args.img_width and args.img_height:
         px_w, px_h = args.img_width, args.img_height
     elif args.img_width:
         px_w = args.img_width
@@ -342,6 +383,16 @@ def main():
     if not args.input or not os.path.exists(args.input):
         print("Error: a valid input image path is required.")
         sys.exit(1)
+
+    if (
+        getattr(args, "aspect_ratio", None)
+        and args.img_width
+        and args.img_height
+    ):
+        parser.error(
+            "argument -ar/--aspect-ratio: not allowed with both "
+            "-W/--img-width and -H/--img-height"
+        )
 
     width = resolve_width(args.style, args.width)
     with Image.open(args.input) as opened:
