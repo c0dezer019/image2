@@ -31,10 +31,6 @@ jobs:
             msys_env: mingw64
             msys_pkg: mingw-w64-x86_64
 
-          - os: macos-13
-            label: macos-x86_64
-            pkg_arch: x86_64
-
           - os: macos-14
             label: macos-arm64
             pkg_arch: arm64
