@@ -20,17 +20,12 @@ a = Analysis(
     hiddenimports=(
         collect_submodules("cairosvg")
         + collect_submodules("cairocffi")
+        + collect_submodules("PIL")
         + [
             "img2ansi",
             "img2ascii",
             "imgcommon",
             "imgsvg",
-            "PIL",
-            "PIL.Image",
-            "PIL.ImageFilter",
-            "PIL.ImageOps",
-            "PIL.ImageEnhance",
-            "PIL.ImageStat",
         ]
     ),
     hookspath=[os.path.join(SPECPATH, "hooks")],
