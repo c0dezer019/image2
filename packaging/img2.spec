@@ -38,7 +38,7 @@ a = Analysis(
     runtime_hooks=[
         os.path.join(SPECPATH, "hooks", "rthook-cairocffi.py")
     ],
-    excludes=["tkinter", "unittest", "test", "distutils"],
+    excludes=["tkinter", "unittest", "test"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
