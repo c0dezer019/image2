@@ -31,6 +31,14 @@ jobs:
             msys_env: mingw64
             msys_pkg: mingw-w64-x86_64
 
+          - os: macos-13
+            label: macos-x86_64
+            pkg_arch: x86_64
+
+          - os: macos-14
+            label: macos-arm64
+            pkg_arch: arm64
+
 
     steps:
       - uses: actions/checkout@v4
@@ -49,6 +57,11 @@ jobs:
             libpango1.0-dev \
             dpkg-dev
 
+      # ── macOS system deps ────────────────────────────────────────────────
+      - name: Install system deps (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cairo
+
       # ── Windows: cairo DLLs via MSYS2 ───────────────────────────────────
       - name: Install Cairo DLLs (Windows)
         if: runner.os == 'Windows'
@@ -66,9 +79,9 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller pyinstaller-hooks-contrib
 
-      # ── Build (Linux) ────────────────────────────────────────────────────
-      - name: PyInstaller (Linux)
-        if: runner.os == 'Linux'
+      # ── Build (Linux / macOS) ────────────────────────────────────────────
+      - name: PyInstaller (Linux / macOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
         run: pyinstaller packaging/img2.spec
 
       # ── Build (Windows) ──────────────────────────────────────────────────
@@ -84,6 +97,13 @@ jobs:
       - name: Package .deb
         if: runner.os == 'Linux'
         run: bash packaging/make-deb.sh ${{ matrix.pkg_arch }}
+
+      # ── Package .tar.gz (macOS) ──────────────────────────────────────────
+      - name: Package .tar.gz (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ver=$(python3 -c "import tomllib,pathlib; d=tomllib.load(pathlib.Path('pyproject.toml').open('rb')); print(d['project']['version'])")
+          tar -czf "dist/img2-${ver}-macos-${{ matrix.pkg_arch }}.tar.gz" -C dist img2
 
       # ── Rename .exe ──────────────────────────────────────────────────────
       - name: Rename .exe
@@ -122,4 +142,5 @@ jobs:
           files: |
             artifacts/*.deb
             artifacts/*.exe
+            artifacts/*.tar.gz
           generate_release_notes: true
