@@ -1,0 +1,125 @@
+name: Build Distributions
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            label: linux-amd64
+            pkg_arch: amd64
+
+          - os: ubuntu-22.04-arm
+            label: linux-arm64
+            pkg_arch: arm64
+
+          - os: windows-latest
+            label: windows-x86_64
+            pkg_arch: x86_64
+            msys_env: mingw64
+            msys_pkg: mingw-w64-x86_64
+
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      # ── Linux system deps ────────────────────────────────────────────────
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            libcairo2 libcairo2-dev \
+            libpango1.0-dev \
+            dpkg-dev
+
+      # ── Windows: cairo DLLs via MSYS2 ───────────────────────────────────
+      - name: Install Cairo DLLs (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $pkg = "${{ matrix.msys_pkg }}"
+          C:\msys64\usr\bin\bash.exe -lc `
+            "pacman -S --noconfirm ${pkg}-cairo ${pkg}-glib2 ${pkg}-pixman ${pkg}-libpng"
+          $dll_dir = "C:\msys64\${{ matrix.msys_env }}\bin"
+          "CAIRO_DLL_DIR=$dll_dir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # ── Python deps ──────────────────────────────────────────────────────
+      - name: Install Python deps
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller pyinstaller-hooks-contrib
+
+      # ── Build (Linux) ────────────────────────────────────────────────────
+      - name: PyInstaller (Linux)
+        if: runner.os == 'Linux'
+        run: pyinstaller packaging/img2.spec
+
+      # ── Build (Windows) ──────────────────────────────────────────────────
+      - name: PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Cairo DLLs must be on PATH so PyInstaller bundles them.
+          $env:PATH = "$env:CAIRO_DLL_DIR;$env:PATH"
+          pyinstaller packaging/img2.spec
+
+      # ── Package .deb ─────────────────────────────────────────────────────
+      - name: Package .deb
+        if: runner.os == 'Linux'
+        run: bash packaging/make-deb.sh ${{ matrix.pkg_arch }}
+
+      # ── Rename .exe ──────────────────────────────────────────────────────
+      - name: Rename .exe
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ver = python -c @"
+          import tomllib, pathlib
+          d = tomllib.load(pathlib.Path('pyproject.toml').open('rb'))
+          print(d['project']['version'])
+          "@
+          Move-Item dist\img2.exe "dist\img2-$ver-windows-${{ matrix.pkg_arch }}.exe"
+
+      # ── Upload artifacts ─────────────────────────────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: img2-${{ matrix.label }}
+          path: dist/img2*
+          if-no-files-found: error
+
+  # ── Release (tag pushes only) ─────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.deb
+            artifacts/*.exe
+          generate_release_notes: true
