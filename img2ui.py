@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid as _uuid
 import webbrowser
@@ -58,8 +59,7 @@ networks:
 
 def _ensure_compose_file() -> None:
     COMPOSE_DIR.mkdir(parents=True, exist_ok=True)
-    if not COMPOSE_FILE.exists():
-        COMPOSE_FILE.write_text(COMPOSE_YAML)
+    COMPOSE_FILE.write_text(COMPOSE_YAML)
 
 
 def check_docker() -> bool:
@@ -73,7 +73,7 @@ def check_port_free(port: int) -> bool:
         try:
             s.connect(("localhost", port))
             return False
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, OSError):
             return True
 
 
@@ -137,19 +137,22 @@ def upload_file(path: str) -> str:
     ).encode() + file_data + f"\r\n--{boundary}--\r\n".encode()
 
     conn = http.client.HTTPConnection("localhost", SERVER_PORT)
-    conn.request(
-        "POST",
-        "/upload",
-        body=body,
-        headers={
-            "Content-Type": f"multipart/form-data; boundary={boundary}"
-        },
-    )
-    resp = conn.getresponse()
-    if resp.status != 200:
-        raise RuntimeError(f"/upload failed ({resp.status})")
-    data = json.loads(resp.read())
-    return data["session_id"]
+    try:
+        conn.request(
+            "POST",
+            "/upload",
+            body=body,
+            headers={
+                "Content-Type": f"multipart/form-data; boundary={boundary}"
+            },
+        )
+        resp = conn.getresponse()
+        if resp.status != 200:
+            raise RuntimeError(f"/upload failed ({resp.status})")
+        data = json.loads(resp.read())
+        return data["session_id"]
+    finally:
+        conn.close()
 
 
 def open_ui(
@@ -165,11 +168,11 @@ def open_ui(
     if not session_id:
         webbrowser.open(WEB_URL)
         return
-    query_parts = [f"session={session_id}"]
+    query_dict = {"session": session_id}
     if params:
-        for k, v in params.items():
-            query_parts.append(f"{k}={v}")
-    webbrowser.open(f"{WEB_URL}?{'&'.join(query_parts)}")
+        query_dict.update(params)
+    query = urllib.parse.urlencode(query_dict)
+    webbrowser.open(f"{WEB_URL}?{query}")
 
 
 def _print_docker_missing() -> None:
