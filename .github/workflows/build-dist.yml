@@ -10,31 +10,18 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.label }}
+  # ── Linux (amd64 + arm64) ─────────────────────────────────────────────────
+  build-linux:
+    name: Build linux-${{ matrix.pkg_arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
-            label: linux-amd64
             pkg_arch: amd64
-
           - os: ubuntu-22.04-arm
-            label: linux-arm64
             pkg_arch: arm64
-
-          - os: windows-latest
-            label: windows-x86_64
-            pkg_arch: x86_64
-            msys_env: mingw64
-            msys_pkg: mingw-w64-x86_64
-
-          - os: macos-14
-            label: macos-arm64
-            pkg_arch: arm64
-
 
     steps:
       - uses: actions/checkout@v4
@@ -43,9 +30,7 @@ jobs:
         with:
           python-version: '3.14'
 
-      # ── Linux system deps ────────────────────────────────────────────────
-      - name: Install system deps (Linux)
-        if: runner.os == 'Linux'
+      - name: Install system deps
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
@@ -53,57 +38,55 @@ jobs:
             libpango1.0-dev \
             dpkg-dev
 
-      # ── macOS system deps ────────────────────────────────────────────────
-      - name: Install system deps (macOS)
-        if: runner.os == 'macOS'
-        run: brew install cairo
-
-      # ── Windows: cairo DLLs via MSYS2 ───────────────────────────────────
-      - name: Install Cairo DLLs (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $pkg = "${{ matrix.msys_pkg }}"
-          C:\msys64\usr\bin\bash.exe -lc `
-            "pacman -S --noconfirm ${pkg}-cairo ${pkg}-glib2 ${pkg}-pixman ${pkg}-libpng"
-          $dll_dir = "C:\msys64\${{ matrix.msys_env }}\bin"
-          "CAIRO_DLL_DIR=$dll_dir" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      # ── Python deps ──────────────────────────────────────────────────────
       - name: Install Python deps
         run: |
           pip install -r requirements.txt
           pip install pyinstaller pyinstaller-hooks-contrib
 
-      # ── Build (Linux / macOS) ────────────────────────────────────────────
-      - name: PyInstaller (Linux / macOS)
-        if: runner.os == 'Linux' || runner.os == 'macOS'
+      - name: PyInstaller
         run: pyinstaller packaging/img2.spec
 
-      # ── Build (Windows) ──────────────────────────────────────────────────
-      - name: PyInstaller (Windows)
-        if: runner.os == 'Windows'
+      - name: Package .deb
+        run: bash packaging/make-deb.sh ${{ matrix.pkg_arch }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: img2-linux-${{ matrix.pkg_arch }}
+          path: dist/img2*.deb
+          if-no-files-found: error
+
+  # ── Windows (x86_64) ──────────────────────────────────────────────────────
+  build-windows:
+    name: Build windows-x86_64
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install Cairo DLLs via MSYS2
         shell: pwsh
         run: |
-          # Cairo DLLs must be on PATH so PyInstaller bundles them.
+          C:\msys64\usr\bin\bash.exe -lc `
+            "pacman -S --noconfirm mingw-w64-x86_64-cairo mingw-w64-x86_64-glib2 mingw-w64-x86_64-pixman mingw-w64-x86_64-libpng"
+          "CAIRO_DLL_DIR=C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install Python deps
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller pyinstaller-hooks-contrib
+
+      - name: PyInstaller
+        shell: pwsh
+        run: |
           $env:PATH = "$env:CAIRO_DLL_DIR;$env:PATH"
           pyinstaller packaging/img2.spec
 
-      # ── Package .deb ─────────────────────────────────────────────────────
-      - name: Package .deb
-        if: runner.os == 'Linux'
-        run: bash packaging/make-deb.sh ${{ matrix.pkg_arch }}
-
-      # ── Package .tar.gz (macOS) ──────────────────────────────────────────
-      - name: Package .tar.gz (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          ver=$(python3 -c "import tomllib,pathlib; d=tomllib.load(pathlib.Path('pyproject.toml').open('rb')); print(d['project']['version'])")
-          tar -czf "dist/img2-${ver}-macos-${{ matrix.pkg_arch }}.tar.gz" -C dist img2
-
-      # ── Rename .exe ──────────────────────────────────────────────────────
       - name: Rename .exe
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ver = python -c @"
@@ -111,22 +94,57 @@ jobs:
           d = tomllib.load(pathlib.Path('pyproject.toml').open('rb'))
           print(d['project']['version'])
           "@
-          Move-Item dist\img2.exe "dist\img2-$ver-windows-${{ matrix.pkg_arch }}.exe"
+          Move-Item dist\img2.exe "dist\img2-$ver-windows-x86_64.exe"
 
-      # ── Upload artifacts ─────────────────────────────────────────────────
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: img2-${{ matrix.label }}
-          path: dist/img2*
+          name: img2-windows-x86_64
+          path: dist/img2*.exe
+          if-no-files-found: error
+
+  # ── macOS (arm64) ─────────────────────────────────────────────────────────
+  build-macos:
+    name: Build macos-arm64
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install system deps
+        run: brew install cairo
+
+      - name: Install Python deps
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller pyinstaller-hooks-contrib
+
+      - name: PyInstaller
+        run: pyinstaller packaging/img2.spec
+
+      - name: Package .tar.gz
+        run: |
+          ver=$(python3 -c "import tomllib,pathlib; d=tomllib.load(pathlib.Path('pyproject.toml').open('rb')); print(d['project']['version'])")
+          tar -czf "dist/img2-${ver}-macos-arm64.tar.gz" -C dist img2
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: img2-macos-arm64
+          path: dist/img2*.tar.gz
           if-no-files-found: error
 
   # ── Release (tag pushes only) ─────────────────────────────────────────────
   release:
     name: Create GitHub Release
-    needs: build
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+
     steps:
       - uses: actions/download-artifact@v4
         with:
