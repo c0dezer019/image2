@@ -112,7 +112,6 @@ def test_upload_file_returns_session_id(tmp_path):
 def test_cmd_ui_stop():
     args = MagicMock()
     args.stop = True
-    args.no_docker = False
     with patch.object(img2ui, "stop_stack") as mock_stop:
         img2ui.cmd_ui(args)
     mock_stop.assert_called_once()
@@ -121,8 +120,8 @@ def test_cmd_ui_stop():
 def test_cmd_ui_exits_when_docker_missing():
     args = MagicMock()
     args.stop = False
-    args.no_docker = False
-    with patch.object(img2ui, "check_docker", return_value=False):
+    with patch.object(img2ui, "_stack_already_running", return_value=False), \
+         patch.object(img2ui, "check_docker", return_value=False):
         with pytest.raises(SystemExit):
             img2ui.cmd_ui(args)
 
@@ -130,18 +129,29 @@ def test_cmd_ui_exits_when_docker_missing():
 def test_cmd_ui_exits_on_port_conflict():
     args = MagicMock()
     args.stop = False
-    args.no_docker = False
-    with patch.object(img2ui, "check_docker", return_value=True):
-        with patch.object(img2ui, "check_port_free", return_value=False):
-            with pytest.raises(SystemExit):
-                img2ui.cmd_ui(args)
+    with patch.object(img2ui, "_stack_already_running", return_value=False), \
+         patch.object(img2ui, "check_docker", return_value=True), \
+         patch.object(img2ui, "check_port_free", return_value=False):
+        with pytest.raises(SystemExit):
+            img2ui.cmd_ui(args)
+
+
+def test_cmd_ui_reuses_running_stack():
+    """Stack already up: skip port checks and compose, just open browser."""
+    args = MagicMock()
+    args.stop = False
+    with patch.object(
+        img2ui, "_stack_already_running", return_value=True
+    ), patch.object(img2ui, "open_ui") as mock_open:
+        img2ui.cmd_ui(args)
+    mock_open.assert_called_once_with()
 
 
 def test_cmd_ui_full_happy_path():
     args = MagicMock()
     args.stop = False
-    args.no_docker = False
-    with patch.object(img2ui, "check_docker", return_value=True), \
+    with patch.object(img2ui, "_stack_already_running", return_value=False), \
+         patch.object(img2ui, "check_docker", return_value=True), \
          patch.object(img2ui, "check_port_free", return_value=True), \
          patch.object(img2ui, "start_stack"), \
          patch.object(img2ui, "wait_for_server", return_value=True), \
@@ -150,10 +160,45 @@ def test_cmd_ui_full_happy_path():
     mock_open.assert_called_once_with()
 
 
+def test_stack_already_running_false_when_web_port_free():
+    with patch.object(img2ui, "check_port_free", return_value=True):
+        assert img2ui._stack_already_running() is False
+
+
+def test_stack_already_running_false_when_health_not_local():
+    resp = MagicMock()
+    resp.__enter__ = lambda s: s
+    resp.__exit__ = MagicMock(return_value=False)
+    resp.read.return_value = b'{"status": "ok", "local": false}'
+    with patch.object(img2ui, "check_port_free", return_value=False), \
+         patch("urllib.request.urlopen", return_value=resp):
+        assert img2ui._stack_already_running() is False
+
+
+def test_stack_already_running_false_on_health_error():
+    with patch.object(img2ui, "check_port_free", return_value=False), \
+         patch(
+             "urllib.request.urlopen",
+             side_effect=urllib.error.URLError("refused"),
+         ):
+        assert img2ui._stack_already_running() is False
+
+
+def test_stack_already_running_true_when_local_health():
+    resp = MagicMock()
+    resp.__enter__ = lambda s: s
+    resp.__exit__ = MagicMock(return_value=False)
+    resp.read.return_value = b'{"status": "ok", "local": true}'
+    with patch.object(img2ui, "check_port_free", return_value=False), \
+         patch("urllib.request.urlopen", return_value=resp):
+        assert img2ui._stack_already_running() is True
+
+
 def test_cmd_ui_with_file_happy_path(tmp_path):
     png = tmp_path / "img.png"
     png.write_bytes(b"data")
-    with patch.object(img2ui, "check_docker", return_value=True), \
+    with patch.object(img2ui, "_stack_already_running", return_value=False), \
+         patch.object(img2ui, "check_docker", return_value=True), \
          patch.object(img2ui, "check_port_free", return_value=True), \
          patch.object(img2ui, "start_stack"), \
          patch.object(img2ui, "wait_for_server", return_value=True), \

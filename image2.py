@@ -182,12 +182,6 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Stop the running Docker Compose stack",
     )
-    ui_p.add_argument(
-        "--no-docker",
-        action="store_true",
-        default=False,
-        help="Run without Docker (downloads release artifacts)",
-    )
 
     return p
 

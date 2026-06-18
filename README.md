@@ -155,16 +155,6 @@ When running locally, the server operates with:
 - Rate limiting **disabled**
 - Output size caps **lifted** (no 600×600 / 250,000-cell limit)
 
-### Without Docker
-
-```bash
-img2 ui --no-docker
-```
-
-Downloads a pinned server wheel and frontend build from GitHub Releases and
-serves them locally without Docker. Internet required on first run; artifacts
-are cached in `~/.image2/`.
-
 ### How --ui Works
 
 When `--ui` is passed to `ascii` or `ansi`, the CLI skips rendering to disk
