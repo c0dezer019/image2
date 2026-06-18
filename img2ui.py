@@ -191,8 +191,22 @@ def _start_and_wait() -> bool:
 
 
 def _stack_already_running() -> bool:
-    """Return True if the Image2 server is already healthy on localhost."""
-    return wait_for_server(timeout=2)
+    """Return True if an Image2 local stack occupies both expected ports.
+
+    Validates that /health returns ``local: true`` (Image2-specific) AND
+    that port 3000 is occupied (web container up).  A foreign service on
+    8000 that happens to return HTTP 200 will not match ``local: true``.
+    """
+    if check_port_free(WEB_PORT):
+        return False
+    try:
+        with urllib.request.urlopen(
+            f"{SERVER_URL}/health", timeout=2
+        ) as resp:
+            data = json.loads(resp.read())
+            return bool(data.get("local"))
+    except Exception:
+        return False
 
 
 def _check_prerequisites() -> bool:
