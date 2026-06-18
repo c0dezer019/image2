@@ -539,7 +539,6 @@ def test_ui_subcommand_parsed():
     args = p.parse_args(["ui"])
     assert args.style == "ui"
     assert args.stop is False
-    assert args.no_docker is False
 
 
 def test_ui_stop_flag_parsed():

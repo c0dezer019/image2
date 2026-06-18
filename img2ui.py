@@ -158,8 +158,7 @@ def open_ui(
 def _print_docker_missing() -> None:
     print(
         "Docker not found. Install Docker Desktop:\n"
-        "  https://docs.docker.com/get-docker/\n"
-        "Or run without Docker: img2 ui --no-docker",
+        "  https://docs.docker.com/get-docker/",
         file=sys.stderr,
     )
 
@@ -191,6 +190,11 @@ def _start_and_wait() -> bool:
     return True
 
 
+def _stack_already_running() -> bool:
+    """Return True if the Image2 server is already healthy on localhost."""
+    return wait_for_server(timeout=2)
+
+
 def _check_prerequisites() -> bool:
     """Check Docker and ports. Prints errors and returns False on failure."""
     if not check_docker():
@@ -210,12 +214,11 @@ def cmd_ui(args) -> None:
         print("Stack stopped.")
         return
 
-    if args.no_docker:
-        print(
-            "--no-docker fallback not yet implemented.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    if _stack_already_running():
+        open_ui()
+        print(f"Image2 running at {WEB_URL}")
+        print("Stop with: img2 ui --stop")
+        return
 
     if not _check_prerequisites():
         sys.exit(1)
@@ -234,11 +237,11 @@ def cmd_ui_with_file(path: str, mode: str, params: dict) -> None:
     Skips the CLI render path; uploads *path* and opens the UI pre-seeded
     with the session and render parameters.
     """
-    if not _check_prerequisites():
-        sys.exit(1)
-
-    if not _start_and_wait():
-        sys.exit(1)
+    if not _stack_already_running():
+        if not _check_prerequisites():
+            sys.exit(1)
+        if not _start_and_wait():
+            sys.exit(1)
 
     session_id = upload_file(path)
     open_ui(session_id=session_id, params={"mode": mode, **params})
