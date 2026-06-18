@@ -104,6 +104,7 @@ def wait_for_server(timeout: int = HEALTH_TIMEOUT) -> bool:
     Returns True on success, False on timeout.
     """
     deadline = time.monotonic() + timeout
+    delay = 0.5
     while time.monotonic() < deadline:
         try:
             with urllib.request.urlopen(
@@ -111,7 +112,8 @@ def wait_for_server(timeout: int = HEALTH_TIMEOUT) -> bool:
             ):
                 return True
         except (urllib.error.URLError, OSError):
-            time.sleep(1)
+            time.sleep(delay)
+            delay = min(delay * 2, 5.0)
     return False
 
 

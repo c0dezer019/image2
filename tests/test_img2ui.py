@@ -1,10 +1,6 @@
-import http.client
 import json
-import socket
-import subprocess
 import urllib.error
-import webbrowser
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -48,7 +44,10 @@ def test_wait_for_server_success():
 
 
 def test_wait_for_server_timeout():
-    with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("err")):
+    with patch(
+        "urllib.request.urlopen",
+        side_effect=urllib.error.URLError("err"),
+    ):
         with patch("time.sleep"):
             result = img2ui.wait_for_server(timeout=1)
     assert result is False
@@ -81,7 +80,10 @@ def test_open_ui_no_session():
 
 def test_open_ui_with_session_and_params():
     with patch("webbrowser.open") as mock_open:
-        img2ui.open_ui(session_id="abc", params={"mode": "ascii", "contrast": "1.2"})
+        img2ui.open_ui(
+            session_id="abc",
+            params={"mode": "ascii", "contrast": "1.2"},
+        )
     url = mock_open.call_args[0][0]
     assert "session=abc" in url
     assert "mode=ascii" in url
