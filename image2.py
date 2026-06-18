@@ -33,7 +33,9 @@ ascii-only:
                       derives the unset dimension from -W or -H (or from
                       the source width if neither given). Conflicts with
                       passing both -W and -H.
-    -b, --bg          Background color (default: #000000)
+    -b, --bg          Background color (default: auto-detected from
+                      source image tone, #ffffff or #000000; #000000
+                      under --no-auto)
     --font-size, -f   Font size px (default: 4.0 HTML / 13 PNG)
     --select, -s      Auto-highlight the text
     --monochrome, -m  Render all glyphs in a single solid color
@@ -69,6 +71,7 @@ import img2ascii
 from imgcommon import (
     build_ascii_grid,
     build_halfblock_grid,
+    compute_auto_bg,
     compute_auto_params,
     load_and_enhance,
     resize_for,
@@ -302,7 +305,12 @@ def _render_ansi(args, width: int, img: Image.Image) -> None:
 
 
 def _render_ascii(args, width: int, img: Image.Image) -> None:
-    bg = args.bg if args.bg is not None else "#000000"
+    if args.bg is not None:
+        bg = args.bg
+    elif args.no_auto:
+        bg = "#000000"
+    else:
+        bg = compute_auto_bg(img)
     font_size = (
         args.font_size
         if args.font_size is not None
