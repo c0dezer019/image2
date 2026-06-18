@@ -41,8 +41,8 @@ jobs:
       - name: Install Python deps
         run: |
           pip install -r requirements.txt
-          pip install pyinstaller pyinstaller-hooks-contrib
           pip install -e .
+          pip install pyinstaller pyinstaller-hooks-contrib
 
       - name: PyInstaller
         run: pyinstaller packaging/img2.spec
@@ -79,8 +79,8 @@ jobs:
       - name: Install Python deps
         run: |
           pip install -r requirements.txt
-          pip install pyinstaller pyinstaller-hooks-contrib
           pip install -e .
+          pip install pyinstaller pyinstaller-hooks-contrib
 
       - name: PyInstaller
         shell: pwsh
@@ -123,8 +123,8 @@ jobs:
       - name: Install Python deps
         run: |
           pip install -r requirements.txt
-          pip install pyinstaller pyinstaller-hooks-contrib
           pip install -e .
+          pip install pyinstaller pyinstaller-hooks-contrib
 
       - name: PyInstaller
         run: pyinstaller packaging/img2.spec
