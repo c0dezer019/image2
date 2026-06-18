@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import http.client
+import importlib.resources as _pkg
 import json
 import mimetypes
 import shutil
@@ -29,7 +30,9 @@ COMPOSE_FILE = COMPOSE_DIR / "docker-compose.yml"
 # spec (docs/superpowers/specs/2026-06-17-img2-ui-local-server-design.md)
 # explicitly requires NEXT_PUBLIC_IMAGE2_SERVER_URL on the web service so the
 # browser-side Next.js app knows where to reach the server. Added here.
-COMPOSE_YAML = (Path(__file__).parent / "docker-compose.yml").read_text()
+COMPOSE_YAML = (
+    _pkg.files("_img2ui_data").joinpath("docker-compose.yml").read_text()
+)
 
 
 def _ensure_compose_file() -> None:

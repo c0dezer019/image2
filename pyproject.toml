@@ -13,6 +13,10 @@ dependencies = ["Pillow", "cairosvg"]
 img2 = "image2:main"
 [tool.setuptools]
 py-modules = ["image2", "img2ansi", "img2ascii", "imgcommon", "imgsvg", "img2ui"]
+packages = ["_img2ui_data"]
+
+[tool.setuptools.package-data]
+"_img2ui_data" = ["docker-compose.yml"]
 
 [tool.black]
 line-length = 79
