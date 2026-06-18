@@ -17,7 +17,7 @@ a = Analysis(
         + collect_data_files("cairocffi")
         + collect_data_files("PIL")
         + copy_metadata("image2")
-        + [("_img2ui_data/docker-compose.yml", "_img2ui_data")]
+        + [(os.path.join(root, "_img2ui_data", "docker-compose.yml"), "_img2ui_data")]
     ),
     hiddenimports=(
         collect_submodules("cairosvg")
