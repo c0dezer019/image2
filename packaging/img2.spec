@@ -44,6 +44,13 @@ a = Analysis(
     noarchive=False,
 )
 
+# Exclude bundled libstdc++/libgcc — they're older than what system Qt6/ICU
+# requires, causing GLIBCXX_3.4.32 / CXXABI_1.3.15 not found at runtime.
+a.binaries = [
+    x for x in a.binaries
+    if not any(x[0].startswith(lib) for lib in ("libstdc++", "libgcc_s"))
+]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
