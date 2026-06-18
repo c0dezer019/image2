@@ -12,7 +12,7 @@ dependencies = ["Pillow", "cairosvg"]
 [project.scripts]
 img2 = "image2:main"
 [tool.setuptools]
-py-modules = ["image2", "img2ansi", "img2ascii", "imgcommon", "imgsvg"]
+py-modules = ["image2", "img2ansi", "img2ascii", "imgcommon", "imgsvg", "img2ui"]
 
 [tool.black]
 line-length = 79
