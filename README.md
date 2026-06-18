@@ -128,6 +128,59 @@ whichever `--mode` was chosen.
 
 ---
 
+## Web UI
+
+`img2 ui` spins up the [Image2-Web](https://github.com/c0dezer019/image2-web)
+interface locally via Docker Compose and opens your browser.
+
+### Prerequisites
+
+- [Docker Desktop](https://docs.docker.com/get-docker/) (or Docker Engine + Compose V2)
+
+### Usage
+
+```bash
+# Spin up and open browser
+img2 ui
+
+# Open UI pre-seeded with an image and conversion params
+img2 ascii photo.jpg -c 1.2 -B 1.1 --ui
+img2 ansi photo.jpg --mode truecolor --ui
+
+# Stop the stack
+img2 ui --stop
+```
+
+When running locally, the server operates with:
+- Rate limiting **disabled**
+- Output size caps **lifted** (no 600×600 / 250,000-cell limit)
+
+### Without Docker
+
+```bash
+img2 ui --no-docker
+```
+
+Downloads a pinned server wheel and frontend build from GitHub Releases and
+serves them locally without Docker. Internet required on first run; artifacts
+are cached in `~/.image2/`.
+
+### How --ui Works
+
+When `--ui` is passed to `ascii` or `ansi`, the CLI skips rendering to disk
+and instead:
+
+1. Starts the Docker Compose stack (or reuses it if already running)
+2. Uploads the source image to the local server → receives a `session_id`
+3. Opens `http://localhost:3000?session=<id>&mode=ascii&contrast=1.2&...`
+4. The browser UI auto-loads the image and parameters, then converts
+
+The Docker Compose stack runs two containers on a shared `image2-net` network:
+- `c0dezer019/image2-server:latest` on port 8000
+- `c0dezer019/image2-web:latest` on port 3000
+
+---
+
 ## Examples
 
 ```bash

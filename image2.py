@@ -75,6 +75,7 @@ from imgcommon import (
     lift_luminance,
 )
 from imgsvg import ascii_grid_to_svg, ansi_grid_to_svg, render_svg_to_png
+import img2ui
 
 
 def parse_aspect_ratio(value: str) -> float:
@@ -146,6 +147,12 @@ def build_parser() -> argparse.ArgumentParser:
     ascii_p.add_argument("-m", "--monochrome", action="store_true", default=False)
     ascii_p.add_argument("-F", "--font-color", default=None)
     ascii_p.add_argument("--min", action="store_true", default=False)
+    ascii_p.add_argument(
+        "--ui",
+        action="store_true",
+        default=False,
+        help="Open Image2-Web UI pre-seeded with this image and params",
+    )
 
     ansi_p = sub.add_parser(
         "ansi",
@@ -158,6 +165,29 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     ansi_p.add_argument("--png", action="store_true", default=False)
+    ansi_p.add_argument(
+        "--ui",
+        action="store_true",
+        default=False,
+        help="Open Image2-Web UI pre-seeded with this image and params",
+    )
+
+    ui_p = sub.add_parser(
+        "ui",
+        help="Launch Image2-Web UI locally via Docker Compose",
+    )
+    ui_p.add_argument(
+        "--stop",
+        action="store_true",
+        default=False,
+        help="Stop the running Docker Compose stack",
+    )
+    ui_p.add_argument(
+        "--no-docker",
+        action="store_true",
+        default=False,
+        help="Run without Docker (downloads release artifacts)",
+    )
 
     return p
 
@@ -380,6 +410,10 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.style == "ui":
+        img2ui.cmd_ui(args)
+        return
+
     if not args.input or not os.path.exists(args.input):
         print("Error: a valid input image path is required.")
         sys.exit(1)
@@ -414,6 +448,18 @@ def main():
             args.no_auto,
         )
     )
+    if getattr(args, "ui", False):
+        ui_params = {
+            "contrast": str(args.contrast),
+            "brightness": str(args.brightness),
+            "sharpness": str(args.sharpness),
+            "saturate": str(args.saturate),
+            "min_lum": str(args.min_lum),
+            "width": str(width),
+        }
+        img2ui.cmd_ui_with_file(args.input, args.style, ui_params)
+        return
+
     if args.style == "ansi":
         _render_ansi(args, width, img)
     else:

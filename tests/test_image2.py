@@ -1,5 +1,6 @@
 import os
 import sys
+from unittest.mock import patch
 
 import pytest
 from PIL import Image
@@ -526,3 +527,58 @@ def test_min_flag_clamps_explicit_large_width(tmp_path, monkeypatch):
     image2.main()
 
     assert captured["width"] == 100
+
+
+# ---------------------------------------------------------------------------
+# img2 ui subcommand + --ui flag
+# ---------------------------------------------------------------------------
+
+def test_ui_subcommand_parsed():
+    from image2 import build_parser
+    p = build_parser()
+    args = p.parse_args(["ui"])
+    assert args.style == "ui"
+    assert args.stop is False
+    assert args.no_docker is False
+
+
+def test_ui_stop_flag_parsed():
+    from image2 import build_parser
+    p = build_parser()
+    args = p.parse_args(["ui", "--stop"])
+    assert args.stop is True
+
+
+def test_ascii_ui_flag_parsed():
+    from image2 import build_parser
+    p = build_parser()
+    args = p.parse_args(["ascii", "sample.png", "--ui"])
+    assert args.ui is True
+
+
+def test_ansi_ui_flag_parsed():
+    from image2 import build_parser
+    p = build_parser()
+    args = p.parse_args(["ansi", "sample.png", "--ui"])
+    assert args.ui is True
+
+
+def test_main_routes_ui_subcommand(tmp_path):
+    from image2 import main
+    with patch("sys.argv", ["img2", "ui"]):
+        with patch("img2ui.cmd_ui") as mock_cmd:
+            main()
+    mock_cmd.assert_called_once()
+
+
+def test_main_routes_ascii_ui_flag(tmp_path):
+    img_path = tmp_path / "test.png"
+    Image.new("RGB", (4, 4), (100, 150, 200)).save(str(img_path))
+    from image2 import main
+    with patch("sys.argv", ["img2", "ascii", str(img_path), "--ui"]):
+        with patch("img2ui.cmd_ui_with_file") as mock_cmd:
+            main()
+    mock_cmd.assert_called_once()
+    call_args = mock_cmd.call_args
+    assert call_args[0][0] == str(img_path)
+    assert call_args[0][1] == "ascii"
