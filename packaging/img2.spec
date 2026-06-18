@@ -1,7 +1,7 @@
 # img2.spec — PyInstaller spec for img2 (cross-platform, onefile)
 import os
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 block_cipher = None
 
@@ -16,6 +16,8 @@ a = Analysis(
         collect_data_files("cairosvg")
         + collect_data_files("cairocffi")
         + collect_data_files("PIL")
+        + copy_metadata("image2")
+        + [("_img2ui_data/docker-compose.yml", "_img2ui_data")]
     ),
     hiddenimports=(
         collect_submodules("cairosvg")
@@ -26,6 +28,8 @@ a = Analysis(
             "img2ascii",
             "imgcommon",
             "imgsvg",
+            "img2ui",
+            "_img2ui_data",
         ]
     ),
     hookspath=[os.path.join(SPECPATH, "hooks")],
