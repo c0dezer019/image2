@@ -317,7 +317,9 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
         else (4.0 if args.html else 13)
     )
     monochrome = args.monochrome or args.font_color is not None
-    font_color = args.font_color or "#ffffff"
+    font_color = args.font_color or (
+        "#000000" if bg == "#ffffff" else "#ffffff"
+    )
 
     ext = ".html" if args.html else ".png"
     if args.output:

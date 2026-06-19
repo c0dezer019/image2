@@ -401,6 +401,23 @@ def test_ascii_no_monochrome_uses_per_pixel_color(tmp_path, monkeypatch):
     assert "rgb(" in html
 
 
+def test_ascii_monochrome_default_color_contrasts_bright_bg(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "bright.png"
+    Image.new("RGB", (4, 4), (240, 240, 240)).save(path)
+    out = str(tmp_path / "art.html")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["img2", "ascii", str(path), "--html", "-o", out, "--monochrome"],
+    )
+    image2.main()
+    html = open(out, encoding="utf-8").read()
+    assert "color:#000000" in html
+    assert "color:#ffffff" not in html
+
+
 def test_min_flag_caps_width_and_font_size_html(tmp_path, monkeypatch):
     src = _tiny_image(tmp_path)
     out = str(tmp_path / "art.html")
