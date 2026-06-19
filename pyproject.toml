@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "image2"
 version = "1.5.2"
 description = "Convert images to colored ASCII or traditional ANSI art."
-authors = [{name = "c0dezer019", email = "briandb1222@gmail.com"}]
+authors = [{name = "Brian Blankenship", email = "briandb1222@bblankenship.me"}]
 license = {text = "MIT"}
 requires-python = ">=3.14"
 dependencies = ["Pillow", "cairosvg", "pyperclip"]

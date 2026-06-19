@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="console-application">
+  <id>io.github.c0dezer019.img2</id>
+  <name>img2</name>
+  <summary>Convert images to colored ASCII or traditional ANSI art</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.c0dezer019">
+    <name>Brian Blankenship</name>
+  </developer>
+  <url type="homepage">https://github.com/c0dezer019/image2</url>
+  <provides>
+    <binary>img2</binary>
+  </provides>
+  <description>
+    <p>
+      img2 converts raster images into ASCII art (PNG/HTML output) or
+      ANSI block-art (.ans and PNG output). Self-contained binary; no
+      Python or system cairo installation required.
+    </p>
+  </description>
+</component>
