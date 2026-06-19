@@ -19,6 +19,47 @@ def test_ansi_subcommand_sets_style():
     assert args.style == "ansi"
 
 
+def test_feedback_subcommand_sets_style():
+    args = image2.build_parser().parse_args(["feedback", "great tool"])
+    assert args.style == "feedback"
+    assert args.message == "great tool"
+
+
+def test_feedback_message_optional():
+    args = image2.build_parser().parse_args(["feedback"])
+    assert args.message is None
+
+
+def test_bug_subcommand_sets_style():
+    args = image2.build_parser().parse_args(
+        ["bug", "it crashed", "--command", "img2 ascii x.png"]
+    )
+    assert args.style == "bug"
+    assert args.message == "it crashed"
+    assert args.command == "img2 ascii x.png"
+
+
+def test_bug_defaults_when_only_message_given():
+    args = image2.build_parser().parse_args(["bug", "it crashed"])
+    assert args.command is None
+    assert args.log_file is None
+    assert args.log_lines == 50
+
+
+def test_main_routes_feedback_subcommand():
+    with patch("sys.argv", ["img2", "feedback", "hi"]):
+        with patch("img2feedback.cmd_feedback") as mock_cmd:
+            image2.main()
+    mock_cmd.assert_called_once()
+
+
+def test_main_routes_bug_subcommand():
+    with patch("sys.argv", ["img2", "bug", "oops"]):
+        with patch("img2bug.cmd_bug") as mock_cmd:
+            image2.main()
+    mock_cmd.assert_called_once()
+
+
 def test_no_subcommand_exits():
     with pytest.raises(SystemExit):
         image2.build_parser().parse_args([])
@@ -399,6 +440,23 @@ def test_ascii_no_monochrome_uses_per_pixel_color(tmp_path, monkeypatch):
     image2.main()
     html = open(out, encoding="utf-8").read()
     assert "rgb(" in html
+
+
+def test_ascii_monochrome_default_color_contrasts_bright_bg(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "bright.png"
+    Image.new("RGB", (4, 4), (240, 240, 240)).save(path)
+    out = str(tmp_path / "art.html")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["img2", "ascii", str(path), "--html", "-o", out, "--monochrome"],
+    )
+    image2.main()
+    html = open(out, encoding="utf-8").read()
+    assert "color:#000000" in html
+    assert "color:#ffffff" not in html
 
 
 def test_min_flag_caps_width_and_font_size_html(tmp_path, monkeypatch):

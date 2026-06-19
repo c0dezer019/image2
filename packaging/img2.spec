@@ -17,7 +17,7 @@ a = Analysis(
         + collect_data_files("cairocffi")
         + collect_data_files("PIL")
         + copy_metadata("image2")
-        + [("_img2ui_data/docker-compose.yml", "_img2ui_data")]
+        + [(os.path.join(root, "_img2ui_data", "docker-compose.yml"), "_img2ui_data")]
     ),
     hiddenimports=(
         collect_submodules("cairosvg")
@@ -43,6 +43,13 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# Exclude bundled libstdc++/libgcc — they're older than what system Qt6/ICU
+# requires, causing GLIBCXX_3.4.32 / CXXABI_1.3.15 not found at runtime.
+a.binaries = [
+    x for x in a.binaries
+    if not any(x[0].startswith(lib) for lib in ("libstdc++", "libgcc_s"))
+]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

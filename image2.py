@@ -33,7 +33,9 @@ ascii-only:
                       derives the unset dimension from -W or -H (or from
                       the source width if neither given). Conflicts with
                       passing both -W and -H.
-    -b, --bg          Background color (default: #000000)
+    -b, --bg          Background color (default: auto-detected from
+                      source image tone, #ffffff or #000000; #000000
+                      under --no-auto)
     --font-size, -f   Font size px (default: 4.0 HTML / 13 PNG)
     --select, -s      Auto-highlight the text
     --monochrome, -m  Render all glyphs in a single solid color
@@ -52,6 +54,7 @@ import argparse
 import importlib.metadata
 import os
 import sys
+from pathlib import Path
 
 try:
     __version__ = importlib.metadata.version("image2")
@@ -69,12 +72,16 @@ import img2ascii
 from imgcommon import (
     build_ascii_grid,
     build_halfblock_grid,
+    compute_auto_bg,
     compute_auto_params,
     load_and_enhance,
     resize_for,
     lift_luminance,
 )
 from imgsvg import ascii_grid_to_svg, ansi_grid_to_svg, render_svg_to_png
+import img2bug
+import img2feedback
+import img2log
 import img2ui
 
 
@@ -181,6 +188,42 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Stop the running Docker Compose stack",
+    )
+    ui_p.add_argument(
+        "--update",
+        action="store_true",
+        default=False,
+        help="Pull fresh images before starting (otherwise reuses cached)",
+    )
+
+    feedback_p = sub.add_parser(
+        "feedback",
+        help="Send feedback (via the configured webhook)",
+    )
+    feedback_p.add_argument("message", nargs="?", help="Feedback message")
+
+    bug_p = sub.add_parser(
+        "bug",
+        help="Report a bug: captures details, copies them to the "
+        "clipboard, and sends them via the configured webhook",
+    )
+    bug_p.add_argument("message", nargs="?", help="Description of the bug")
+    bug_p.add_argument(
+        "--command",
+        help="Command that caused the bug (auto-detected from img2's "
+        "own command history if omitted)",
+    )
+    bug_p.add_argument(
+        "--log-file",
+        type=Path,
+        default=None,
+        help="Log file to include (default: ~/.image2/img2.log)",
+    )
+    bug_p.add_argument(
+        "--log-lines",
+        type=int,
+        default=50,
+        help="Number of recent log lines to include (default: 50)",
     )
 
     return p
@@ -302,14 +345,21 @@ def _render_ansi(args, width: int, img: Image.Image) -> None:
 
 
 def _render_ascii(args, width: int, img: Image.Image) -> None:
-    bg = args.bg if args.bg is not None else "#000000"
+    if args.bg is not None:
+        bg = args.bg
+    elif args.no_auto:
+        bg = "#000000"
+    else:
+        bg = compute_auto_bg(img)
     font_size = (
         args.font_size
         if args.font_size is not None
         else (4.0 if args.html else 13)
     )
     monochrome = args.monochrome or args.font_color is not None
-    font_color = args.font_color or "#ffffff"
+    font_color = args.font_color or (
+        "#000000" if bg == "#ffffff" else "#ffffff"
+    )
 
     ext = ".html" if args.html else ".png"
     if args.output:
@@ -400,14 +450,7 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
         render_svg_to_png(svg, output_path)
 
 
-def main():
-    parser = build_parser()
-    args = parser.parse_args()
-
-    if args.style == "ui":
-        img2ui.cmd_ui(args)
-        return
-
+def _render(parser: argparse.ArgumentParser, args) -> None:
     if not args.input or not os.path.exists(args.input):
         print("Error: a valid input image path is required.")
         sys.exit(1)
@@ -458,6 +501,30 @@ def main():
         _render_ansi(args, width, img)
     else:
         _render_ascii(args, width, img)
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+    img2log.log_invocation(sys.argv)
+
+    if args.style == "feedback":
+        img2feedback.cmd_feedback(args)
+        return
+
+    if args.style == "bug":
+        img2bug.cmd_bug(args)
+        return
+
+    if args.style == "ui":
+        img2ui.cmd_ui(args)
+        return
+
+    try:
+        _render(parser, args)
+    except Exception:
+        img2log.get_logger().exception("img2 %s failed", args.style)
+        raise
 
 
 if __name__ == "__main__":

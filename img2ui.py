@@ -55,16 +55,55 @@ def check_port_free(port: int) -> bool:
             return True
 
 
-def start_stack() -> None:
-    """Pull the latest images and start the compose stack detached."""
+_COMPOSE_IMAGES = [
+    "c0dezer019/image2-server",
+    "c0dezer019/image2-web",
+]
+
+
+def _image_id(ref: str) -> str | None:
+    """Return the image ID for *ref*, or None if not present locally."""
+    result = subprocess.run(
+        ["docker", "inspect", "--format", "{{.Id}}", ref],
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() or None
+
+
+def start_stack(pull: bool = False) -> None:
+    """Start the compose stack detached.
+
+    Pass *pull=True* to force a fresh image pull and remove old image2
+    images that were replaced (e.g. ``img2 ui --update``).
+    """
     _ensure_compose_file()
+    penv = "latest"
+
+    old_ids: dict[str, str | None] = {}
+    if pull:
+        for name in _COMPOSE_IMAGES:
+            old_ids[name] = _image_id(f"{name}:{penv}")
+
+    pull_flag = "always" if pull else "missing"
     subprocess.run(
         [
             "docker", "compose", "-f", str(COMPOSE_FILE),
-            "up", "-d", "--pull", "always",
+            "up", "-d", "--pull", pull_flag,
         ],
         check=True,
     )
+
+    if pull:
+        for name, old_id in old_ids.items():
+            if old_id is None:
+                continue
+            new_id = _image_id(f"{name}:{penv}")
+            if new_id != old_id:
+                subprocess.run(
+                    ["docker", "rmi", old_id],
+                    capture_output=True,
+                )
 
 
 def stop_stack() -> None:
@@ -170,10 +209,10 @@ def _print_port_conflict(port: int) -> None:
     )
 
 
-def _start_and_wait() -> bool:
+def _start_and_wait(pull: bool = False) -> bool:
     """Start the stack and wait for the server. Returns False on timeout."""
     print("Starting Image2-Web...")
-    start_stack()
+    start_stack(pull=pull)
     print(f"Waiting for server (up to {HEALTH_TIMEOUT}s)...")
     if not wait_for_server():
         result = subprocess.run(
@@ -237,7 +276,7 @@ def cmd_ui(args) -> None:
     if not _check_prerequisites():
         sys.exit(1)
 
-    if not _start_and_wait():
+    if not _start_and_wait(pull=getattr(args, "update", False)):
         sys.exit(1)
 
     open_ui()

@@ -24,9 +24,9 @@ jobs:
             pkg_arch: arm64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.2.0
         with:
           python-version: '3.14'
 
@@ -43,6 +43,7 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
           pip install pyinstaller pyinstaller-hooks-contrib
+          pip install -e .
 
       - name: PyInstaller
         run: pyinstaller packaging/img2.spec
@@ -51,7 +52,7 @@ jobs:
         run: bash packaging/make-deb.sh ${{ matrix.pkg_arch }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: img2-linux-${{ matrix.pkg_arch }}
           path: dist/img2*.deb
@@ -63,9 +64,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.2.0
         with:
           python-version: '3.14'
 
@@ -81,6 +82,7 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
           pip install pyinstaller pyinstaller-hooks-contrib
+          pip install -e .
 
       - name: PyInstaller
         shell: pwsh
@@ -99,7 +101,7 @@ jobs:
           Move-Item dist\img2.exe "dist\img2-$ver-windows-x86_64.exe"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: img2-windows-x86_64
           path: dist/img2*.exe
@@ -111,9 +113,9 @@ jobs:
     runs-on: macos-14
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.2.0
         with:
           python-version: '3.14'
 
@@ -125,6 +127,7 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
           pip install pyinstaller pyinstaller-hooks-contrib
+          pip install -e .
 
       - name: PyInstaller
         run: pyinstaller packaging/img2.spec
@@ -135,7 +138,7 @@ jobs:
           tar -czf "dist/img2-${ver}-macos-arm64.tar.gz" -C dist img2
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: img2-macos-arm64
           path: dist/img2*.tar.gz

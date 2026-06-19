@@ -158,6 +158,24 @@ _MAX_AUTO_MIN_LUM = 0.30
 _AUTO_EPS = 1e-6
 
 
+def compute_auto_bg(img: Image.Image) -> str:
+    """Pick an ascii background color that contrasts with the source tone.
+
+    Glyphs never fully cover a cell, so the background color shows
+    through the gaps. A fixed black background muddies high-key (mostly
+    bright) sources; this picks white for those and keeps black for
+    everything else.
+
+    Args:
+        img: Source image, any mode, pre-resize and pre-enhancement.
+
+    Returns:
+        "#ffffff" or "#000000".
+    """
+    mean_lum = ImageStat.Stat(img.convert("L")).mean[0]
+    return "#ffffff" if mean_lum > 127.5 else "#000000"
+
+
 def _percentile_from_histogram(hist: list[int], pct: float) -> int:
     """Return the 0-255 value at the given percentile of a 256-bin histogram."""
     total = sum(hist)
@@ -196,7 +214,7 @@ def compute_auto_params(img: Image.Image) -> dict[str, float]:
 
     lo, hi = _AUTO_CLAMP
 
-    def _clamp_ratio(target: float, current: float) -> float:
+    def _clamp_ratio(target: float, current: float, lo: float = lo) -> float:
         ratio = (target * 255) / max(current, _AUTO_EPS)
         return min(max(ratio, lo), hi)
 
@@ -204,7 +222,10 @@ def compute_auto_params(img: Image.Image) -> dict[str, float]:
     min_lum = min(min_lum, _MAX_AUTO_MIN_LUM)
 
     return {
-        "brightness": _clamp_ratio(_TARGET_MEAN_LUM, mean_lum),
+        # Only brighten dark sources; never darken already-bright ones
+        # (e.g. high-key line art), which would crush contrast instead
+        # of restoring it.
+        "brightness": _clamp_ratio(_TARGET_MEAN_LUM, mean_lum, lo=1.0),
         "contrast": _clamp_ratio(_TARGET_STD_LUM, std_lum),
         "saturate": _clamp_ratio(_TARGET_MEAN_SAT, mean_sat),
         "min_lum": min_lum,

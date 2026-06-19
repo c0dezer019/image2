@@ -166,7 +166,7 @@ def test_compute_auto_params_solid_near_black():
 def test_compute_auto_params_solid_white():
     img = _solid(8, 8, (255, 255, 255))
     out = imgcommon.compute_auto_params(img)
-    assert out["brightness"] == 0.5  # mean_lum=255 -> ratio clamps low
+    assert out["brightness"] == 1.0  # mean_lum=255 -> never darkened
     assert out["min_lum"] == 0.0
 
 
@@ -187,3 +187,18 @@ def test_compute_auto_params_clamped_to_bounds():
         for key in ("brightness", "contrast", "saturate"):
             assert 0.5 <= out[key] <= 2.5
         assert 0.0 <= out["min_lum"] <= 0.3
+
+
+# ---------------------------------------------------------------------------
+# compute_auto_bg
+# ---------------------------------------------------------------------------
+
+
+def test_compute_auto_bg_bright_source_picks_white():
+    img = _solid(8, 8, (240, 240, 240))
+    assert imgcommon.compute_auto_bg(img) == "#ffffff"
+
+
+def test_compute_auto_bg_dark_source_picks_black():
+    img = _solid(8, 8, (20, 20, 20))
+    assert imgcommon.compute_auto_bg(img) == "#000000"
