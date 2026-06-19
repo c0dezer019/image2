@@ -189,6 +189,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Stop the running Docker Compose stack",
     )
+    ui_p.add_argument(
+        "--update",
+        action="store_true",
+        default=False,
+        help="Pull fresh images before starting (otherwise reuses cached)",
+    )
 
     feedback_p = sub.add_parser(
         "feedback",
