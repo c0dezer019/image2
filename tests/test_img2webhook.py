@@ -7,10 +7,17 @@ import pytest
 import img2webhook
 
 
-def test_send_webhook_missing_url(monkeypatch):
+def test_send_webhook_uses_default_url(monkeypatch):
     monkeypatch.delenv(img2webhook.WEBHOOK_URL_ENV, raising=False)
-    with pytest.raises(img2webhook.WebhookError):
+    mock_resp = MagicMock()
+    mock_resp.__enter__ = lambda s: s
+    mock_resp.__exit__ = MagicMock(return_value=False)
+    with patch(
+        "urllib.request.urlopen", return_value=mock_resp
+    ) as mock_open:
         img2webhook.send_webhook({"type": "feedback"})
+    request = mock_open.call_args[0][0]
+    assert request.full_url == img2webhook.DEFAULT_WEBHOOK_URL
 
 
 def test_send_webhook_posts_json(monkeypatch):
