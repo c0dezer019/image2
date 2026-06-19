@@ -23,7 +23,6 @@ CONFIG_FILE = IMAGE2_DIR / "config.json"
 class WebhookError(RuntimeError):
     """Raised when the webhook request fails."""
 
-
 def _get_or_create_token() -> str | None:
     """Return a persisted webhook token, generating one on first use.
 
