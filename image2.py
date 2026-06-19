@@ -52,6 +52,7 @@ import argparse
 import importlib.metadata
 import os
 import sys
+from pathlib import Path
 
 try:
     __version__ = importlib.metadata.version("image2")
@@ -75,6 +76,9 @@ from imgcommon import (
     lift_luminance,
 )
 from imgsvg import ascii_grid_to_svg, ansi_grid_to_svg, render_svg_to_png
+import img2bug
+import img2feedback
+import img2log
 import img2ui
 
 
@@ -181,6 +185,36 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Stop the running Docker Compose stack",
+    )
+
+    feedback_p = sub.add_parser(
+        "feedback",
+        help="Send feedback (via the configured webhook)",
+    )
+    feedback_p.add_argument("message", nargs="?", help="Feedback message")
+
+    bug_p = sub.add_parser(
+        "bug",
+        help="Report a bug: captures details, copies them to the "
+        "clipboard, and sends them via the configured webhook",
+    )
+    bug_p.add_argument("message", nargs="?", help="Description of the bug")
+    bug_p.add_argument(
+        "--command",
+        help="Command that caused the bug (auto-detected from img2's "
+        "own command history if omitted)",
+    )
+    bug_p.add_argument(
+        "--log-file",
+        type=Path,
+        default=None,
+        help="Log file to include (default: ~/.image2/img2.log)",
+    )
+    bug_p.add_argument(
+        "--log-lines",
+        type=int,
+        default=50,
+        help="Number of recent log lines to include (default: 50)",
     )
 
     return p
@@ -400,14 +434,7 @@ def _render_ascii(args, width: int, img: Image.Image) -> None:
         render_svg_to_png(svg, output_path)
 
 
-def main():
-    parser = build_parser()
-    args = parser.parse_args()
-
-    if args.style == "ui":
-        img2ui.cmd_ui(args)
-        return
-
+def _render(parser: argparse.ArgumentParser, args) -> None:
     if not args.input or not os.path.exists(args.input):
         print("Error: a valid input image path is required.")
         sys.exit(1)
@@ -458,6 +485,30 @@ def main():
         _render_ansi(args, width, img)
     else:
         _render_ascii(args, width, img)
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+    img2log.log_invocation(sys.argv)
+
+    if args.style == "feedback":
+        img2feedback.cmd_feedback(args)
+        return
+
+    if args.style == "bug":
+        img2bug.cmd_bug(args)
+        return
+
+    if args.style == "ui":
+        img2ui.cmd_ui(args)
+        return
+
+    try:
+        _render(parser, args)
+    except Exception:
+        img2log.get_logger().exception("img2 %s failed", args.style)
+        raise
 
 
 if __name__ == "__main__":
