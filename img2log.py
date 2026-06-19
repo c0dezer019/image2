@@ -19,33 +19,49 @@ _logger: logging.Logger | None = None
 
 
 def get_logger() -> logging.Logger:
-    """Return the shared ``img2`` app logger, configuring it on first use."""
+    """Return the shared ``img2`` app logger, configuring it on first use.
+
+    Falls back to a no-op handler if the log file can't be opened (e.g. an
+    unwritable home directory), since logging must never be the reason a
+    command fails.
+    """
     global _logger
     if _logger is not None:
         return _logger
-    IMAGE2_DIR.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("img2")
     logger.setLevel(logging.INFO)
-    handler = logging.handlers.RotatingFileHandler(
-        LOG_FILE, maxBytes=1_000_000, backupCount=3
-    )
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-    )
+    try:
+        IMAGE2_DIR.mkdir(parents=True, exist_ok=True)
+        handler = logging.handlers.RotatingFileHandler(
+            LOG_FILE, maxBytes=1_000_000, backupCount=3
+        )
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        )
+    except OSError:
+        handler = logging.NullHandler()
     logger.addHandler(handler)
     _logger = logger
     return logger
 
 
 def log_invocation(argv: list[str]) -> None:
-    """Append *argv* (e.g. ``sys.argv``) to the command history file."""
-    IMAGE2_DIR.mkdir(parents=True, exist_ok=True)
+    """Append *argv* (e.g. ``sys.argv``) to the command history file.
+
+    Best-effort: an unwritable home directory must not block the
+    requested subcommand from running, since this only enriches later
+    bug reports.
+    """
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "argv": argv,
     }
-    with HISTORY_FILE.open("a") as fh:
-        fh.write(json.dumps(entry) + "\n")
+    try:
+        IMAGE2_DIR.mkdir(parents=True, exist_ok=True)
+        with HISTORY_FILE.open("a") as fh:
+            fh.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass
 
 
 def get_last_command() -> str | None:

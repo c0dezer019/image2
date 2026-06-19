@@ -1,4 +1,22 @@
+from unittest.mock import patch
+
 import img2log
+
+
+def test_log_invocation_mkdir_failure_does_not_raise():
+    with patch.object(img2log.Path, "mkdir", side_effect=OSError("ro fs")):
+        img2log.log_invocation(["img2", "ascii", "in.png"])
+
+
+def test_log_invocation_open_failure_does_not_raise():
+    with patch.object(img2log.Path, "open", side_effect=OSError("ro fs")):
+        img2log.log_invocation(["img2", "ascii", "in.png"])
+
+
+def test_get_logger_falls_back_to_null_handler_on_oserror():
+    with patch.object(img2log.Path, "mkdir", side_effect=OSError("ro fs")):
+        logger = img2log.get_logger()
+    assert isinstance(logger.handlers[0], img2log.logging.NullHandler)
 
 
 def test_log_invocation_and_get_last_command():
