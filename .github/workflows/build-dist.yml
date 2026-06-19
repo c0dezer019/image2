@@ -41,6 +41,7 @@ jobs:
       - name: Install Python deps
         run: |
           pip install -r requirements.txt
+          pip install -e .
           pip install pyinstaller pyinstaller-hooks-contrib
           pip install -e .
 
@@ -79,6 +80,7 @@ jobs:
       - name: Install Python deps
         run: |
           pip install -r requirements.txt
+          pip install -e .
           pip install pyinstaller pyinstaller-hooks-contrib
           pip install -e .
 
@@ -123,6 +125,7 @@ jobs:
       - name: Install Python deps
         run: |
           pip install -r requirements.txt
+          pip install -e .
           pip install pyinstaller pyinstaller-hooks-contrib
           pip install -e .
 
