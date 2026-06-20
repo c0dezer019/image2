@@ -9,4 +9,7 @@ build/
 *.png
 *.ans
 *.jpg
+.env
+.env.*
+dist
 *.webp
