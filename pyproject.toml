@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "image2"
-version = "1.5.2"
+version = "1.6.0"
 description = "Convert images to colored ASCII or traditional ANSI art."
 authors = [{name = "Brian Blankenship", email = "briandb1222@bblankenship.me"}]
 license = {text = "MIT"}
