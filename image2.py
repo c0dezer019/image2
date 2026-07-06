@@ -9,16 +9,11 @@ Usage:
 Shared options:
     -o, --output      Output path
     -w, --width       Character columns (default: ascii 350, ansi 80)
-    -c, --contrast    Contrast multiplier (default: auto-detected)
+    -c, --contrast    Contrast multiplier (default: 1.5)
     -s, --sharpness   Sharpness multiplier (default: 2.5)
-    -B, --brightness  Brightness multiplier (default: auto-detected)
-    --saturate        Saturation multiplier (default: auto-detected)
-    -ml, --min-lum    Minimum HLS luminance 0.0-1.0 (default: auto-detected)
-    --no-auto         Disable auto-detection; use fixed defaults
-                      (contrast 1.5, brightness 1.0, saturate 1.0,
-                      min-lum 0.0) for any of the above not given.
-                      Sharpness is never auto-detected and is
-                      unaffected by this flag.
+    -B, --brightness  Brightness multiplier (default: 1.0)
+    --saturate        Saturation multiplier (default: 1.0)
+    -ml, --min-lum    Minimum HLS luminance 0.0-1.0 (default: 0.0)
     --invert          Invert source image colors before rendering
     --blur            Gaussian blur radius applied before processing
                       (default: 0.0, disabled)
@@ -34,8 +29,7 @@ ascii-only:
                       the source width if neither given). Conflicts with
                       passing both -W and -H.
     -b, --bg          Background color (default: auto-detected from
-                      source image tone, #ffffff or #000000; #000000
-                      under --no-auto)
+                      source image tone, #ffffff or #000000)
     --font-size, -f   Font size px (default: 4.0 HTML / 13 PNG)
     --select, -s      Auto-highlight the text
     --monochrome, -m  Render all glyphs in a single solid color
@@ -73,7 +67,6 @@ from imgcommon import (
     build_ascii_grid,
     build_halfblock_grid,
     compute_auto_bg,
-    compute_auto_params,
     load_and_enhance,
     resize_for,
     lift_luminance,
@@ -119,7 +112,6 @@ def _shared_parser() -> argparse.ArgumentParser:
     p.add_argument("-B", "--brightness", type=float, default=None)
     p.add_argument("-S", "--saturate", type=float, default=None)
     p.add_argument("-ml", "--min-lum", type=float, default=None)
-    p.add_argument("--no-auto", action="store_true", default=False)
     p.add_argument("--invert", action="store_true", default=False)
     p.add_argument("--blur", type=float, default=0.0)
     return p
@@ -240,8 +232,9 @@ def apply_min_cap(value, cap, enabled):
     return min(value, cap) if enabled else value
 
 
-# Old fixed defaults, used when --no-auto is passed.
-_OLD_ENHANCE_DEFAULTS = {
+# Fixed enhancement defaults for any of contrast/brightness/saturate/
+# min_lum not given explicitly on the command line.
+_ENHANCE_DEFAULTS = {
     "contrast": 1.5,
     "brightness": 1.0,
     "saturate": 1.0,
@@ -250,46 +243,21 @@ _OLD_ENHANCE_DEFAULTS = {
 
 
 def resolve_enhance_params(
-    img: Image.Image,
     contrast: float | None,
     brightness: float | None,
     saturate: float | None,
     min_lum: float | None,
-    no_auto: bool,
 ) -> tuple[float, float, float, float]:
-    """Fill in unset enhancement params from auto-detection or old defaults.
-
-    Any of contrast/brightness/saturate/min_lum left as None is filled from
-    imgcommon.compute_auto_params(img), unless no_auto is True, in which
-    case unset params fall back to the historical fixed defaults.
-
-    Args:
-        img: Already-opened source image (used for auto-detection only;
-            not modified).
+    """Fill in unset enhancement params from fixed defaults.
 
     Returns:
         (contrast, brightness, saturate, min_lum) fully resolved.
     """
-    requested = {
-        "contrast": contrast,
-        "brightness": brightness,
-        "saturate": saturate,
-        "min_lum": min_lum,
-    }
-    if all(v is not None for v in requested.values()):
-        return contrast, brightness, saturate, min_lum
-
-    auto = _OLD_ENHANCE_DEFAULTS if no_auto else compute_auto_params(img)
-
-    resolved = {
-        key: (value if value is not None else auto[key])
-        for key, value in requested.items()
-    }
     return (
-        resolved["contrast"],
-        resolved["brightness"],
-        resolved["saturate"],
-        resolved["min_lum"],
+        contrast if contrast is not None else _ENHANCE_DEFAULTS["contrast"],
+        brightness if brightness is not None else _ENHANCE_DEFAULTS["brightness"],
+        saturate if saturate is not None else _ENHANCE_DEFAULTS["saturate"],
+        min_lum if min_lum is not None else _ENHANCE_DEFAULTS["min_lum"],
     )
 
 
@@ -345,12 +313,7 @@ def _render_ansi(args, width: int, img: Image.Image) -> None:
 
 
 def _render_ascii(args, width: int, img: Image.Image) -> None:
-    if args.bg is not None:
-        bg = args.bg
-    elif args.no_auto:
-        bg = "#000000"
-    else:
-        bg = compute_auto_bg(img)
+    bg = args.bg if args.bg is not None else compute_auto_bg(img)
     font_size = (
         args.font_size
         if args.font_size is not None
@@ -477,12 +440,10 @@ def _render(parser: argparse.ArgumentParser, args) -> None:
 
     args.contrast, args.brightness, args.saturate, args.min_lum = (
         resolve_enhance_params(
-            img,
             args.contrast,
             args.brightness,
             args.saturate,
             args.min_lum,
-            args.no_auto,
         )
     )
     if getattr(args, "ui", False):

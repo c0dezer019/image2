@@ -6,7 +6,6 @@ import pytest
 from PIL import Image
 
 import image2
-import imgcommon
 
 
 def test_ascii_subcommand_sets_style():
@@ -198,10 +197,6 @@ def test_ansi_default_output_path(tmp_path, monkeypatch):
     assert os.path.exists(expected)
 
 
-def _tiny_pil_image():
-    return Image.new("RGB", (4, 4), (200, 100, 50))
-
-
 @pytest.mark.parametrize(
     "extra_args, out_name",
     [
@@ -231,31 +226,13 @@ def test_main_opens_source_image_only_once(
     assert calls.count(src) == 1
 
 
-def test_resolve_enhance_params_all_explicit_skips_image():
-    # bogus non-Image sentinel proves the image is never touched when
-    # nothing is None
-    result = image2.resolve_enhance_params(
-        object(), 2.0, 1.1, 0.9, 0.05, False
-    )
+def test_resolve_enhance_params_all_explicit():
+    result = image2.resolve_enhance_params(2.0, 1.1, 0.9, 0.05)
     assert result == (2.0, 1.1, 0.9, 0.05)
 
 
-def test_resolve_enhance_params_auto_fills_unset():
-    img = _tiny_pil_image()
-    expected = imgcommon.compute_auto_params(img)
-    result = image2.resolve_enhance_params(img, None, None, None, None, False)
-    assert result == (
-        expected["contrast"],
-        expected["brightness"],
-        expected["saturate"],
-        expected["min_lum"],
-    )
-
-
-def test_resolve_enhance_params_no_auto_uses_old_defaults():
-    result = image2.resolve_enhance_params(
-        object(), None, None, None, None, True
-    )
+def test_resolve_enhance_params_fills_unset_with_fixed_defaults():
+    result = image2.resolve_enhance_params(None, None, None, None)
     assert result == (1.5, 1.0, 1.0, 0.0)
 
 
@@ -293,14 +270,14 @@ def test_ansi_blur_changes_output(tmp_path, monkeypatch):
     out_blurred = str(tmp_path / "blurred.ans")
 
     monkeypatch.setattr(
-        sys, "argv", ["img2", "ansi", src, "-o", out_normal, "--no-auto"]
+        sys, "argv", ["img2", "ansi", src, "-o", out_normal]
     )
     image2.main()
 
     monkeypatch.setattr(
         sys,
         "argv",
-        ["img2", "ansi", src, "-o", out_blurred, "--no-auto", "--blur", "2.0"],
+        ["img2", "ansi", src, "-o", out_blurred, "--blur", "2.0"],
     )
     image2.main()
 
@@ -315,17 +292,14 @@ def test_ansi_blur_zero_is_noop(tmp_path, monkeypatch):
     out_explicit_zero = str(tmp_path / "explicit_zero.ans")
 
     monkeypatch.setattr(
-        sys, "argv", ["img2", "ansi", src, "-o", out_default, "--no-auto"]
+        sys, "argv", ["img2", "ansi", src, "-o", out_default]
     )
     image2.main()
 
     monkeypatch.setattr(
         sys,
         "argv",
-        [
-            "img2", "ansi", src, "-o", out_explicit_zero,
-            "--no-auto", "--blur", "0",
-        ],
+        ["img2", "ansi", src, "-o", out_explicit_zero, "--blur", "0"],
     )
     image2.main()
 
@@ -340,14 +314,14 @@ def test_ansi_invert_changes_output(tmp_path, monkeypatch):
     out_inverted = str(tmp_path / "inverted.ans")
 
     monkeypatch.setattr(
-        sys, "argv", ["img2", "ansi", src, "-o", out_normal, "--no-auto"]
+        sys, "argv", ["img2", "ansi", src, "-o", out_normal]
     )
     image2.main()
 
     monkeypatch.setattr(
         sys,
         "argv",
-        ["img2", "ansi", src, "-o", out_inverted, "--no-auto", "--invert"],
+        ["img2", "ansi", src, "-o", out_inverted, "--invert"],
     )
     image2.main()
 
@@ -356,22 +330,8 @@ def test_ansi_invert_changes_output(tmp_path, monkeypatch):
     assert normal != inverted
 
 
-def test_resolve_enhance_params_partial_override_with_auto():
-    img = _tiny_pil_image()
-    expected = imgcommon.compute_auto_params(img)
-    result = image2.resolve_enhance_params(img, None, 1.2, None, None, False)
-    assert result == (
-        expected["contrast"],
-        1.2,
-        expected["saturate"],
-        expected["min_lum"],
-    )
-
-
-def test_resolve_enhance_params_partial_override_no_auto():
-    result = image2.resolve_enhance_params(
-        object(), 2.0, None, None, None, True
-    )
+def test_resolve_enhance_params_partial_override():
+    result = image2.resolve_enhance_params(2.0, None, None, None)
     assert result == (2.0, 1.0, 1.0, 0.0)
 
 

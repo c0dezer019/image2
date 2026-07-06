@@ -10,11 +10,6 @@ one shared image-prep core:
 
 ## Features
 
-- **Auto-enhancement** — contrast, brightness, saturation, and a shadow-lift
-  floor are derived from the source image's own histogram/stats by default,
-  so dark, flat, or washed-out photos render closer to "as shot" with zero
-  flags. Override any of them individually, or pass `--no-auto` to fall back
-  to fixed historical defaults.
 - **PNG output via SVG + cairosvg** — both `ascii` (PNG) and `ansi --png`
   build a small SVG (text/tspans for ascii, rect half-blocks for ansi) and
   rasterize it with `cairosvg`. No browser/Chromium dependency.
@@ -81,20 +76,13 @@ rejected with a clear error (exit 2).
 | `input` | — | Path to the source image (positional) |
 | `-o, --output` | per style (below) | Output path. Extension respected if given |
 | `-w, --width` | `350` (ascii) / `80` (ansi) | Character columns |
-| `-c, --contrast` | auto-detected | Contrast multiplier |
-| `-s, --sharpness` | `2.5` | Sharpness multiplier (never auto-detected) |
-| `-B, --brightness` | auto-detected | Brightness multiplier |
-| `--saturate` | auto-detected | Saturation multiplier |
-| `--min-lum` | auto-detected | Minimum HLS luminance floor (0.0–1.0) |
-| `--no-auto` | off | Disable auto-detection; use fixed defaults (`contrast 1.5`, `brightness 1.0`, `saturate 1.0`, `min-lum 0.0`) for any of the above not explicitly given. Does not affect `--sharpness`. |
+| `-c, --contrast` | `1.5` | Contrast multiplier |
+| `-s, --sharpness` | `2.5` | Sharpness multiplier |
+| `-B, --brightness` | `1.0` | Brightness multiplier |
+| `--saturate` | `1.0` | Saturation multiplier |
+| `--min-lum` | `0.0` | Minimum HLS luminance floor (0.0–1.0) |
 | `--no-gpu` | off | Deprecated, ignored (no-op; PNG output no longer uses a GPU-backed renderer) |
 | `-h, --help` | — | Show help |
-
-Auto-detection (`compute_auto_params`) inspects the source image's mean/stddev
-luminance, shadow percentile, and mean saturation, and picks
-contrast/brightness/saturate/min-lum that push it toward a "typical photo"
-look. Any of `-c`, `-B`, `--saturate`, `--min-lum` you pass explicitly
-overrides only that value.
 
 ### ascii-only options
 
@@ -186,10 +174,10 @@ img2 ascii planet.jpg --html
 # Force a 1920px-wide PNG on dark-grey, with the striped highlight overlay
 img2 ascii planet.jpg --img-width 1920 -b "#101010" --select
 
-# Wider grid, bigger glyphs, fixed (non-auto) enhancement
-img2 ascii enterprise.jpg -w 500 --font-size 16 --no-auto
+# Wider grid, bigger glyphs
+img2 ascii enterprise.jpg -w 500 --font-size 16
 
-# Override just the contrast, leave brightness/saturation/min-lum auto
+# Override just the contrast, leave brightness/saturation/min-lum at defaults
 img2 ascii enterprise.jpg -c 1.8
 
 # Lift shadows manually on a very dark photo
@@ -203,8 +191,8 @@ cat enterprise_ansi.ans
 img2 ansi planet.jpg -w 100 --mode bbs16 --png
 #   -> planet_ansi.ans, planet_ansi.png
 
-# 256-color .ans, fixed enhancement defaults
-img2 ansi planet.jpg --mode 256 --no-auto
+# 256-color .ans
+img2 ansi planet.jpg --mode 256
 
 # Custom output path with explicit extension
 img2 ansi enterprise.jpg -o renders/enterprise.ans --png
@@ -217,7 +205,7 @@ img2 ansi enterprise.jpg -o renders/enterprise.ans --png
 
 ```
 imgcommon.py   Shared helpers: lift_luminance, load_and_enhance, resize_for,
-               compute_auto_params, build_ascii_grid, build_halfblock_grid
+               compute_auto_bg, build_ascii_grid, build_halfblock_grid
 imgsvg.py      Builds SVG art from pixel grids (ascii text/tspans, ansi
                half-block rects) and rasterizes it to PNG via cairosvg
 img2ascii.py   Colored-ASCII HTML render backend
@@ -250,9 +238,9 @@ venv/bin/pytest
 
 ## How it works (short version)
 
-1. `imgcommon.resolve_enhance_params` fills in any unset
-   contrast/brightness/saturate/min-lum from `compute_auto_params` (source
-   image stats), unless `--no-auto` is given.
+1. `image2.resolve_enhance_params` fills in any unset
+   contrast/brightness/saturate/min-lum from fixed defaults (`1.5`, `1.0`,
+   `1.0`, `0.0`).
 2. `imgcommon.load_and_enhance` applies brightness → contrast → saturation →
    sharpness.
 3. The image is mapped to a per-cell grid: `imgcommon.build_ascii_grid`
